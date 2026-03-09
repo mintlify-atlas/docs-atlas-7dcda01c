@@ -1,0 +1,129 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "PHP FacturaE",
+  "projectDescription": "Generate, validate and sign Spanish FacturaE electronic invoices with a fluent, type-safe PHP API",
+  "theme": "palm",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/invoice",
+              "core/parties",
+              "core/lines-and-taxes",
+              "core/payments",
+              "core/signing"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/corrective-invoices",
+              "guides/discounts-and-charges",
+              "guides/attachments",
+              "guides/validation",
+              "guides/face-integration"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/basic-invoice",
+              "examples/canary-islands",
+              "examples/public-administration",
+              "examples/split-payments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/invoice",
+              "api/party",
+              "api/signer"
+            ]
+          },
+          {
+            "group": "Entities",
+            "pages": [
+              "api/entities/line",
+              "api/entities/payment",
+              "api/entities/address",
+              "api/entities/tax-breakdown",
+              "api/entities/attachment"
+            ]
+          },
+          {
+            "group": "Enumerations",
+            "pages": [
+              "api/enums/tax",
+              "api/enums/payment-method",
+              "api/enums/unit-of-measure",
+              "api/enums/correction-reason",
+              "api/enums/correction-method",
+              "api/enums/schema",
+              "api/enums/invoice-type",
+              "api/enums/special-taxable-event"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Fluent API with type-safe enums for invoice creation",
+    "XAdES-EPES digital signature with optional TSA timestamping",
+    "Support for 29 tax types including VAT, IRPF, IGIC, and surcharges",
+    "19 payment methods with split payment support",
+    "Validation against official FacturaE 3.2.x XSD schemas",
+    "Zero dependencies - only standard PHP extensions required",
+    "Corrective invoices with 22 correction reasons",
+    "Support for Spanish public administration (FACe) requirements"
+  ],
+  "publicApiSurface": [
+    "Invoice::create()",
+    "Invoice::line()",
+    "Invoice::exemptLine()",
+    "Invoice::customLine()",
+    "Invoice::seller()",
+    "Invoice::buyer()",
+    "Invoice::transferPayment()",
+    "Invoice::cashPayment()",
+    "Invoice::cardPayment()",
+    "Invoice::directDebitPayment()",
+    "Invoice::splitPayments()",
+    "Invoice::corrects()",
+    "Invoice::sign()",
+    "Invoice::export()",
+    "Invoice::toXml()",
+    "Party::company()",
+    "Party::person()",
+    "Party::address()",
+    "Party::centre()",
+    "Signer::pfx()",
+    "Signer::pem()",
+    "Tax (enum with 29 tax types)",
+    "PaymentMethod (enum with 19 methods)",
+    "UnitOfMeasure (enum with 36 units)",
+    "CorrectionReason (enum with 22 reasons)",
+    "Schema (FacturaE versions)"
+  ]
+}
