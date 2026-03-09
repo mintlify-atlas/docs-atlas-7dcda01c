@@ -1,0 +1,316 @@
+---
+title: Invoice
+description: The core Invoice class and its fluent API for creating FacturaE XML documents
+---
+
+## Overview
+
+The `Invoice` class is the heart of PHP FacturaE. It provides a fluent API for building compliant FacturaE XML documents with automatic validation, tax calculation, and digital signing capabilities.
+
+## Creating an Invoice
+
+Every invoice starts with `Invoice::create()` which accepts the invoice number as a required parameter:
+
+```php
+use PhpFacturae\Invoice;
+
+$invoice = Invoice::create('2024-001')
+    ->date('2024-03-09')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012');
+```
+
+The constructor automatically sets the issue date to the current timestamp, but you can override it with the `->date()` method.
+
+<Note>
+The invoice number is immutable after creation. Series prefixes should be set using `->series()` rather than including them in the number.
+</Note>
+
+## Core Configuration
+
+### Series and Dates
+
+<Steps>
+  <Step title="Invoice Series">
+    Group related invoices with a series prefix:
+    
+    ```php
+    $invoice->series('A')  // Results in series "A", number "001"
+    ```
+    
+    Series are optional but recommended for organizing invoices by type, client, or accounting period.
+  </Step>
+  
+  <Step title="Issue Date">
+    Set the invoice date (defaults to current timestamp):
+    
+    ```php
+    $invoice->date('2024-03-09')
+    // or
+    $invoice->date(new DateTimeImmutable('2024-03-09'))
+    ```
+  </Step>
+  
+  <Step title="Operation Date">
+    When goods/services were delivered (if different from issue date):
+    
+    ```php
+    $invoice->operationDate('2024-03-01')
+    ```
+  </Step>
+  
+  <Step title="Billing Period">
+    For recurring services or subscriptions:
+    
+    ```php
+    $invoice->billingPeriod(
+        from: '2024-03-01',
+        to: '2024-03-31'
+    )
+    ```
+  </Step>
+</Steps>
+
+### Schema and Type
+
+Specify the FacturaE schema version and invoice type:
+
+```php
+use PhpFacturae\Enums\Schema;
+use PhpFacturae\Enums\InvoiceType;
+
+$invoice->schema(Schema::V3_2_2)  // Default: 3.2.2
+        ->type(InvoiceType::Full);  // Default: Full (FC)
+```
+
+<Info>
+**Schema Versions:**
+- `Schema::V3_2` - Original FacturaE 3.2
+- `Schema::V3_2_1` - Updated schema with minor changes
+- `Schema::V3_2_2` - Latest version (recommended)
+</Info>
+
+<Info>
+**Invoice Types:**
+- `InvoiceType::Full` (FC) - Complete invoice with all details
+- `InvoiceType::Simplified` (FA) - Simplified invoice (tickets)
+- `InvoiceType::SimplifiedRectified` (AF) - Corrective simplified invoice
+</Info>
+
+### Currency and Description
+
+```php
+$invoice->currency('EUR')  // Default: EUR
+        ->description('Monthly consulting services');
+```
+
+Currency must be a valid ISO 4217 code. The description is optional but helpful for internal reference.
+
+## Parties
+
+Every invoice requires a seller and buyer:
+
+```php
+use PhpFacturae\Party;
+
+$seller = Party::company('B12345678', 'Acme Corporation')
+    ->address('Gran Via 1', '28013', 'Madrid', 'Madrid')
+    ->email('[email protected]');
+
+$buyer = Party::person('12345678Z', 'John', 'Doe')
+    ->address('Main Street 10', '08001', 'Barcelona', 'Barcelona');
+
+$invoice->seller($seller)
+        ->buyer($buyer);
+```
+
+See the [Parties documentation](/core/parties) for complete details on configuring sellers and buyers.
+
+## Lines and Taxes
+
+Add invoice lines with automatic tax calculation:
+
+```php
+// Simple line with VAT
+$invoice->line('Laptop', quantity: 2, price: 899.99, vat: 21);
+
+// Service with VAT and IRPF withholding
+$invoice->line('Consulting', price: 1500, vat: 21, irpf: 15);
+
+// Canary Islands with IGIC instead of IVA
+$invoice->line('Product', price: 100, igic: 7);
+
+// Exempt line
+$invoice->exemptLine('Training course', price: 2000, 
+    reason: 'Exempt per Art. 20 LIVA');
+```
+
+See the [Lines and Taxes documentation](/core/lines-and-taxes) for advanced tax scenarios.
+
+## Payments
+
+Define payment terms and methods:
+
+```php
+// Bank transfer
+$invoice->transferPayment('ES12 3456 7890 1234 5678 9012', 
+    dueDate: '2024-04-09');
+
+// Cash payment
+$invoice->cashPayment();
+
+// Split into 3 installments
+$invoice->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2024-04-09',
+    intervalDays: 30,
+    iban: 'ES12 3456 7890 1234 5678 9012'
+);
+```
+
+See the [Payments documentation](/core/payments) for all payment methods.
+
+## General Discounts and Charges
+
+Apply invoice-level discounts or charges:
+
+```php
+// Percentage discount
+$invoice->generalDiscount('VIP customer discount', rate: 10);
+
+// Fixed amount discount
+$invoice->generalDiscount('Early payment', amount: 50.00);
+
+// Shipping charge
+$invoice->generalCharge('Shipping', amount: 15.00);
+```
+
+<Warning>
+General discounts apply to the gross total before taxes. Line-specific discounts should use the `discount` parameter in `->line()` instead.
+</Warning>
+
+## Corrective Invoices
+
+Create corrective invoices that reference original invoices:
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$invoice->corrects(
+    invoiceNumber: '2024-001',
+    reason: CorrectionReason::TransactionDetail,
+    method: CorrectionMethod::FullReplacement,
+    series: 'A'
+);
+```
+
+## Attachments
+
+Attach supporting documents to the invoice:
+
+```php
+use PhpFacturae\Entities\Attachment;
+
+// Using the helper method
+$invoice->attachFile('/path/to/contract.pdf', 'Signed contract');
+
+// Or create Attachment objects directly
+$invoice->attach(Attachment::fromFile('/path/to/specs.pdf', 'Technical specifications'));
+```
+
+## Exporting to XML
+
+Generate the FacturaE XML document:
+
+```php
+// Get XML string
+$xml = $invoice->toXml();
+
+// Or save directly to file
+$invoice->export('/path/to/invoice.xml');
+```
+
+Both methods automatically validate the invoice before export. If validation fails, an `InvoiceValidationException` is thrown with detailed error messages.
+
+## Digital Signing
+
+Sign invoices with XAdES-EPES signatures:
+
+```php
+use PhpFacturae\Signer;
+
+$invoice->sign(Signer::pfx('certificate.pfx', 'password'))
+        ->export('signed-invoice.xml');
+```
+
+See the [Signing documentation](/core/signing) for complete signing capabilities.
+
+## Validation
+
+Validation happens automatically when calling `->toXml()` or `->export()`. The validator checks:
+
+- Required fields (seller, buyer, at least one line)
+- Tax number formats (Spanish NIFs/CIFs)
+- Postal code validation
+- Date consistency
+- Payment amounts
+- Schema-specific requirements
+
+<Tip>
+If you need to validate without exporting, you can catch `InvoiceValidationException` and access the `getErrors()` method for a list of validation issues.
+</Tip>
+
+## Method Reference
+
+### Invoice Configuration
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `create()` | `string $number` | `Invoice` | Static constructor |
+| `series()` | `string $series` | `self` | Set invoice series |
+| `date()` | `string\|DateTimeImmutable $date` | `self` | Set issue date |
+| `operationDate()` | `string\|DateTimeImmutable $date` | `self` | Set operation date |
+| `billingPeriod()` | `string\|DateTimeImmutable $from, $to` | `self` | Set billing period |
+| `schema()` | `Schema $schema` | `self` | Set FacturaE version |
+| `type()` | `InvoiceType $type` | `self` | Set invoice type |
+| `currency()` | `string $currency` | `self` | Set currency (ISO 4217) |
+| `description()` | `string $description` | `self` | Set description |
+
+### Parties and Lines
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `seller()` | `Party $seller` | `self` | Set seller party |
+| `buyer()` | `Party $buyer` | `self` | Set buyer party |
+| `line()` | See [Lines and Taxes](/core/lines-and-taxes) | `self` | Add invoice line |
+| `exemptLine()` | See [Lines and Taxes](/core/lines-and-taxes) | `self` | Add exempt line |
+| `customLine()` | See [Lines and Taxes](/core/lines-and-taxes) | `self` | Add line with custom taxes |
+
+### Payments
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `transferPayment()` | `string $iban, ?string $dueDate, ?float $amount` | `self` | Add bank transfer payment |
+| `cashPayment()` | `?string $dueDate, ?float $amount` | `self` | Add cash payment |
+| `cardPayment()` | `?string $dueDate, ?float $amount` | `self` | Add card payment |
+| `directDebitPayment()` | `string $iban, ?string $dueDate, ?float $amount` | `self` | Add direct debit payment |
+| `splitPayments()` | See [Payments](/core/payments) | `self` | Split into installments |
+
+### Export and Signing
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `sign()` | `InvoiceSigner $signer` | `self` | Set digital signer |
+| `toXml()` | None | `string` | Generate XML string |
+| `export()` | `string $path` | `self` | Export to file |
+
+## Source Reference
+
+The complete Invoice class implementation can be found at:
+- `src/Invoice.php:25-602` - Main Invoice class
+- `src/Enums/Schema.php:7-31` - Schema enumeration
+- `src/Enums/InvoiceType.php:7-18` - Invoice type enumeration

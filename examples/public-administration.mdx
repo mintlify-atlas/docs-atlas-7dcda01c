@@ -1,0 +1,397 @@
+---
+title: "Public Administration (FACe)"
+description: "Create invoices for Spanish public administration with DIR3 administrative centers and FACe requirements"
+---
+
+## Overview
+
+When invoicing Spanish public administration (Administraciones Públicas), you must include **DIR3 codes** for administrative centers. This guide covers:
+
+- DIR3 administrative center codes
+- Accounting office (Oficina contable)
+- Managing body (Órgano gestor)
+- Processing unit (Unidad tramitadora)
+- FACe (Punto General de Entrada de Facturas Electrónicas) requirements
+
+<Note>
+**FACe** is the General Entry Point for Electronic Invoices to Spanish public administration. All suppliers to public entities must submit invoices through FACe with valid DIR3 codes.
+</Note>
+
+## Complete Public Administration Example
+
+Here's a full working example for invoicing a Spanish public entity:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+$invoice = Invoice::create('FAC-FACE-001')
+    ->series('F')  // F for FACe invoices
+    ->date('2024-12-15')
+    ->seller(
+        Party::company('B12345678', 'Consultoria IT S.L.')
+            ->address(
+                'C/ Serrano, 25',
+                '28001',
+                'Madrid',
+                'Madrid',
+                'ESP'
+            )
+            ->email('facturacion@consultoria.es')
+            ->phone('912345678')
+    )
+    ->buyer(
+        Party::company('S2800001A', 'Ministerio de Educacion')
+            ->address(
+                'C/ Alcala, 36',
+                '28014',
+                'Madrid',
+                'Madrid',
+                'ESP'
+            )
+            ->email('facturas@educacion.gob.es')
+            ->centre('01', 'EA0001234')  // Accounting office
+            ->centre('02', 'EA0001234')  // Managing body
+            ->centre('03', 'EA0001234')  // Processing unit
+    )
+    ->line('Consultoria implementacion sistema educativo', price: 15000.00, vat: 21)
+    ->line('Licencias software (50 usuarios)', price: 5000.00, quantity: 1, vat: 21)
+    ->line('Formacion personal (40 horas)', price: 85.00, quantity: 40, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-02-15'  // Public admin usually pays 60-90 days
+    )
+    ->legalLiteral(
+        'Factura destinada a Administracion Publica. '
+        . 'Sujeta a Ley 25/2013 de impulso de la factura electronica.'
+    )
+    ->export('factura-face.xsig');
+```
+
+## Understanding DIR3 Codes
+
+<Steps>
+  <Step title="What is DIR3?">
+    DIR3 (Directorio de Unidades Administrativas) is the official directory of Spanish public administration units. Each entity has unique codes for:
+
+    - **Accounting office** (Oficina contable): Role code `01`
+    - **Managing body** (Órgano gestor): Role code `02`
+    - **Processing unit** (Unidad tramitadora): Role code `03`
+
+    You can search for DIR3 codes at: https://dir3.redsara.es/
+  </Step>
+
+  <Step title="Adding Centers to Buyer">
+    Use the `centre()` method on the buyer Party:
+
+    ```php
+    ->buyer(
+        Party::company('S2800001A', 'Ministerio XYZ')
+            ->address('C/ Alcala, 36', '28014', 'Madrid', 'Madrid')
+            ->centre('01', 'EA0001234')  // Accounting office
+            ->centre('02', 'EA0001235')  // Managing body  
+            ->centre('03', 'EA0001236')  // Processing unit
+    )
+    ```
+
+    <Info>
+    The three centers can be the same code if the entity uses a unified center.
+    </Info>
+  </Step>
+
+  <Step title="Role Codes">
+    Each center must specify its role:
+
+    | Role Code | Description                | Spanish Name           |
+    |-----------|----------------------------|------------------------|
+    | `01`      | Accounting office          | Oficina contable       |
+    | `02`      | Managing body              | Órgano gestor          |
+    | `03`      | Processing unit            | Unidad tramitadora     |
+  </Step>
+</Steps>
+
+## Complete Example with Different Centers
+
+When centers are different (larger administrations):
+
+```php
+Invoice::create('FAC-UNIV-001')
+    ->series('U')
+    ->date('2024-11-20')
+    ->seller(
+        Party::company('A87654321', 'Servicios Academicos S.L.')
+            ->address('C/ Universidad, 10', '28040', 'Madrid', 'Madrid')
+            ->email('admin@servicios.es')
+            ->phone('913456789')
+    )
+    ->buyer(
+        Party::company('Q2818016I', 'Universidad Complutense de Madrid')
+            ->address(
+                'Av. Seneca, 2',
+                '28040',
+                'Madrid',
+                'Madrid',
+                'ESP'
+            )
+            ->email('facturas@ucm.es')
+            ->centre('01', 'EA0008922', 'Oficina Contable UCM')
+            ->centre('02', 'EA0008923', 'Vicerrectorado de Economia')
+            ->centre('03', 'EA0008924', 'Seccion de Contratacion')
+    )
+    ->line('Material informatico aulas', price: 12000.00, vat: 21)
+    ->line('Instalacion y configuracion', price: 2500.00, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-01-20'
+    )
+    ->legalLiteral(
+        'Factura electronica para Administracion Publica. '
+        . 'Conforme a Ley 25/2013.'
+    )
+    ->export('factura-universidad.xsig');
+```
+
+<Tip>
+**Center names** are optional but recommended for clarity. They help internal tracking but don't affect FACe validation.
+</Tip>
+
+## Billing Period for Public Services
+
+Public administration contracts often cover specific periods:
+
+```php
+Invoice::create('FAC-PERIODO-ADMIN-001')
+    ->series('PA')
+    ->date('2025-01-10')
+    ->billingPeriod(from: '2024-10-01', to: '2024-12-31')  // Q4 2024
+    ->seller(
+        Party::company('B98765432', 'Limpieza Profesional S.L.')
+            ->address('C/ Industria, 45', '28925', 'Alcorcon', 'Madrid')
+            ->email('facturas@limpieza.es')
+    )
+    ->buyer(
+        Party::company('P2813800E', 'Ayuntamiento de Madrid')
+            ->address('Plaza de Cibeles, 1', '28014', 'Madrid', 'Madrid')
+            ->centre('01', 'LA0002561')
+            ->centre('02', 'LA0002561')
+            ->centre('03', 'LA0002561')
+    )
+    ->line('Servicio limpieza edificio municipal Q4', price: 4500.00, quantity: 3, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-03-10'  // 60 days payment term
+    )
+    ->legalLiteral(
+        'Servicio prestado segun contrato NUM-2024-XXX. '
+        . 'Factura electronica FACe. Ley 25/2013.'
+    )
+    ->export('factura-trimestral-ayto.xsig');
+```
+
+## Local Government Example
+
+Invoicing a city council (Ayuntamiento):
+
+```php
+Invoice::create('FAC-AYTO-001')
+    ->date('2024-12-20')
+    ->seller(
+        Party::person('12345678Z', 'Jose', 'Martinez', 'Lopez')
+            ->address('C/ Real, 8', '35001', 'Las Palmas', 'Las Palmas')
+            ->email('jose@freelance.com')
+            ->phone('928111222')
+    )
+    ->buyer(
+        Party::company('P3500100A', 'Ayuntamiento de Las Palmas')
+            ->address(
+                'Plaza de Santa Ana, s/n',
+                '35001',
+                'Las Palmas de Gran Canaria',
+                'Las Palmas',
+                'ESP'
+            )
+            ->email('facturas@laspalmasgc.es')
+            ->centre('01', 'LA0003576')
+            ->centre('02', 'LA0003576')
+            ->centre('03', 'LA0003576')
+    )
+    ->line('Asesoria juridica municipal', price: 3000.00, irpf: 15, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-02-20'
+    )
+    ->legalLiteral(
+        'Prestacion de servicios profesionales a Administracion Local. '
+        . 'Retencion IRPF 15% practicada. Factura FACe.'
+    )
+    ->export('factura-ayuntamiento.xsig');
+```
+
+<Info>
+**IRPF Withholding**: Freelancers and professionals must include IRPF (15% or 7% for new businesses) when invoicing public administration.
+</Info>
+
+## Regional Government (Comunidad Autónoma)
+
+Example for a regional government:
+
+```php
+Invoice::create('FAC-CCAA-001')
+    ->series('CA')
+    ->date('2024-12-15')
+    ->seller(
+        Party::company('A11223344', 'Consultoria TIC S.L.')
+            ->address('C/ Castellana, 100', '28046', 'Madrid', 'Madrid')
+            ->email('contacto@tic.es')
+    )
+    ->buyer(
+        Party::company('S4100001D', 'Junta de Andalucia')
+            ->address(
+                'Av. de Roma, s/n',
+                '41071',
+                'Sevilla',
+                'Sevilla',
+                'ESP'
+            )
+            ->centre('01', 'GE0002345')
+            ->centre('02', 'GE0002346')
+            ->centre('03', 'GE0002347')
+    )
+    ->line('Auditoria sistemas informaticos', price: 25000.00, vat: 21)
+    ->line('Informe ejecutivo', price: 5000.00, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-03-15'  // 90 days
+    )
+    ->legalLiteral(
+        'Servicio prestado a Comunidad Autonoma. '
+        . 'Factura electronica segun RD 1619/2012. FACe.'
+    )
+    ->export('factura-junta-andalucia.xsig');
+```
+
+## FACe Requirements Checklist
+
+<Warning>
+**Mandatory elements** for FACe submission:
+
+1. ✅ Valid DIR3 codes for all three centers (01, 02, 03)
+2. ✅ Correct public entity tax number (format: P, S, or Q + 7 digits + letter)
+3. ✅ Complete address for both parties
+4. ✅ Email contact (buyer)
+5. ✅ Valid IBAN for payment
+6. ✅ Due date (public admin usually 30-60-90 days)
+7. ✅ Legal literal mentioning Ley 25/2013 or FACe
+</Warning>
+
+## Finding DIR3 Codes
+
+To find the correct DIR3 codes:
+
+<Steps>
+  <Step title="Access DIR3 Portal">
+    Visit the official DIR3 search: https://dir3.redsara.es/
+  </Step>
+
+  <Step title="Search Entity">
+    Search by entity name or tax number (CIF/NIF)
+  </Step>
+
+  <Step title="Copy Codes">
+    Look for:
+    - Código de unidad (Unit code): starts with EA, GE, LA, etc.
+    - Role: Oficina contable (01), Órgano gestor (02), Unidad tramitadora (03)
+  </Step>
+
+  <Step title="Verify with Buyer">
+    **Always confirm DIR3 codes** with the purchasing department before issuing the invoice.
+  </Step>
+</Steps>
+
+<Tip>
+Many public entities provide their DIR3 codes in the purchase order or contract. Check the "Datos de facturación" section.
+</Tip>
+
+## Multiple Invoices to Same Entity
+
+Create a reusable buyer for frequent invoicing:
+
+```php
+// Define once
+$ministerio = Party::company('S2800001A', 'Ministerio de Educacion')
+    ->address('C/ Alcala, 36', '28014', 'Madrid', 'Madrid', 'ESP')
+    ->email('facturas@educacion.gob.es')
+    ->centre('01', 'EA0001234')
+    ->centre('02', 'EA0001234')
+    ->centre('03', 'EA0001234');
+
+// Use in multiple invoices
+Invoice::create('FAC-FACE-001')->date('2024-12-01')
+    ->seller($myCompany)
+    ->buyer($ministerio)
+    ->line('Service A', price: 1000, vat: 21)
+    ->transferPayment(iban: 'ES...', dueDate: '2025-02-01')
+    ->export('face-001.xsig');
+
+Invoice::create('FAC-FACE-002')->date('2024-12-15')
+    ->seller($myCompany)
+    ->buyer($ministerio)
+    ->line('Service B', price: 2000, vat: 21)
+    ->transferPayment(iban: 'ES...', dueDate: '2025-02-15')
+    ->export('face-002.xsig');
+```
+
+## Legal Literals for Public Admin
+
+<CodeGroup>
+
+```php Standard
+->legalLiteral(
+    'Factura electronica destinada a Administracion Publica. '
+    . 'Sujeta a Ley 25/2013 de impulso de la factura electronica '
+    . 'y facturacion electronica en el Sector Publico.'
+)
+```
+
+```php With Contract Reference
+->legalLiteral(
+    'Factura correspondiente al contrato NUM-2024-XXX. '
+    . 'Presentada via FACe segun normativa vigente Ley 25/2013.'
+)
+```
+
+```php With IRPF
+->legalLiteral(
+    'Factura para Administracion Publica con retencion IRPF 15%. '
+    . 'Conforme a Ley 25/2013 y RD 1619/2012.'
+)
+```
+
+```php Regional Government
+->legalLiteral(
+    'Prestacion de servicios a Comunidad Autonoma. '
+    . 'Factura electronica FACe segun RD 1619/2012.'
+)
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Invoice" icon="file-invoice" href="/examples/basic-invoice">
+    Learn the basics of invoice creation
+  </Card>
+  
+  <Card title="Split Payments" icon="money-bill-wave" href="/examples/split-payments">
+    Configure payment installments
+  </Card>
+  
+  <Card title="Parties API" icon="users" href="/core/parties">
+    Complete Party and centre() documentation
+  </Card>
+  
+  <Card title="Validation" icon="check-circle" href="/guides/validation">
+    Understanding validation errors
+  </Card>
+</CardGroup>

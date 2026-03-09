@@ -1,0 +1,318 @@
+---
+title: "Canary Islands (IGIC)"
+description: "Create invoices for the Canary Islands using IGIC tax instead of VAT, with REIGIC surcharge support"
+---
+
+## Overview
+
+The Canary Islands have a special tax regime that uses **IGIC** (Impuesto General Indirecto Canario) instead of the peninsular VAT (IVA). This guide shows you how to create invoices with:
+
+- IGIC tax instead of VAT
+- REIGIC surcharge (Recargo IGIC)
+- Canary Islands-specific tax configuration
+- Proper legal literals for REF (Régimen Económico y Fiscal Canario)
+
+## Complete IGIC Invoice Example
+
+Here's a full working example for a Canary Islands-based business:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Enums\Schema;
+
+$invoice = Invoice::create('FAC-2024-0001')
+    ->series('A')
+    ->date('2024-12-15')
+    ->schema(Schema::V3_2_2)
+    ->seller(
+        Party::company('B76123456', 'Atlantic Systems S.L.')
+            ->tradeName('Atsys')
+            ->address(
+                'C/ Triana, 52',
+                '35002',
+                'Las Palmas de Gran Canaria',
+                'Las Palmas',
+                'ESP'
+            )
+            ->email('info@atsys.es')
+            ->phone('928000000')
+            ->website('https://atsys.es')
+    )
+    ->buyer(
+        Party::company('A28000001', 'Cliente Demo S.L.')
+            ->address(
+                'C/ Gran Via, 1',
+                '28013',
+                'Madrid',
+                'Madrid',
+                'ESP'
+            )
+            ->email('admin@clientedemo.es')
+    )
+    ->line('Desarrollo web - Landing page corporativa', price: 1200.00, igic: 7)
+    ->line('Mantenimiento WordPress mensual (3 meses)', price: 150.00, quantity: 3, igic: 7)
+    ->line('Certificado SSL y configuracion', price: 45.50, igic: 7)
+    ->line('Consultoria SEO inicial', price: 300.00, igic: 7)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-01-15'
+    )
+    ->legalLiteral(
+        'Factura exenta de IVA por aplicacion del REF Canario. IGIC aplicado al tipo general.'
+    )
+    ->export('factura-canaria.xsig');
+```
+
+<Note>
+**IGIC vs VAT**: Use the `igic` parameter in the `line()` method instead of `vat`. Never mix IGIC and VAT in the same invoice.
+</Note>
+
+## IGIC Tax Rates
+
+<Steps>
+  <Step title="General Rate - 7%">
+    The standard IGIC rate for most goods and services:
+
+    ```php
+    ->line('Servicio profesional', price: 500.00, igic: 7)
+    ```
+  </Step>
+
+  <Step title="Reduced Rate - 3%">
+    Applied to basic necessities:
+
+    ```php
+    ->line('Alimentos basicos', price: 100.00, igic: 3)
+    ```
+  </Step>
+
+  <Step title="Super Reduced Rate - 0%">
+    For exempt goods:
+
+    ```php
+    ->line('Pan y cereales', price: 50.00, igic: 0)
+    ```
+  </Step>
+
+  <Step title="Increased Rate - 15%">
+    For luxury goods and tobacco:
+
+    ```php
+    ->line('Producto de lujo', price: 1000.00, igic: 15)
+    ```
+  </Step>
+</Steps>
+
+## IGIC with REIGIC Surcharge
+
+For businesses subject to REIGIC (similar to recargo de equivalencia), you can add the surcharge:
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$invoice = Invoice::create('FAC-REIGIC-001')
+    ->date('2024-12-20')
+    ->seller(
+        Party::company('B76123456', 'Comercio Canario S.L.')
+            ->address('C/ Mesa y Lopez, 5', '35006', 'Las Palmas', 'Las Palmas')
+    )
+    ->buyer(
+        Party::person('43000000A', 'Maria', 'Rodriguez')
+            ->address('C/ Leon y Castillo, 10', '35003', 'Las Palmas', 'Las Palmas')
+    )
+    ->customLine(
+        description: 'Joyeria de oro',
+        price: 500.00,
+        taxes: [
+            new TaxBreakdown(Tax::IGIC, 7),
+            new TaxBreakdown(Tax::REIGIC, 0.5)  // 0.5% surcharge
+        ]
+    )
+    ->cashPayment(dueDate: '2024-12-20')
+    ->legalLiteral('Sujeto a IGIC 7% + REIGIC 0.5%. REF Canario aplicable.')
+    ->export('factura-reigic.xsig');
+```
+
+<Info>
+**REIGIC rates** correspond to IGIC rates:
+- IGIC 7% → REIGIC 0.5%
+- IGIC 3% → REIGIC 0.25%
+- IGIC 15% → REIGIC 3.5%
+</Info>
+
+## Multiple Tax Rates
+
+Mix different IGIC rates in the same invoice:
+
+```php
+Invoice::create('FAC-MULTI-001')
+    ->date('2024-12-25')
+    ->seller(
+        Party::company('B76123456', 'Supermercado Canario S.L.')
+            ->address('C/ Viera y Clavijo, 20', '35001', 'Las Palmas', 'Las Palmas')
+    )
+    ->buyer(
+        Party::person('43000000A', 'Pedro', 'Suarez')
+            ->address('C/ Castillo, 15', '35004', 'Las Palmas', 'Las Palmas')
+    )
+    ->line('Alimentos basicos (pan, leche)', price: 50.00, igic: 3)    // Reduced
+    ->line('Electrodomestico', price: 300.00, igic: 7)                 // General
+    ->line('Tabaco', price: 100.00, igic: 15)                          // Increased
+    ->cardPayment(dueDate: '2024-12-25')
+    ->legalLiteral('Factura sujeta a diversos tipos de IGIC segun REF Canario.')
+    ->export('factura-multi-igic.xsig');
+```
+
+## IGIC with IRPF Withholding
+
+You can combine IGIC with IRPF (personal income tax withholding) for professional services:
+
+```php
+Invoice::create('FAC-IRPF-001')
+    ->date('2024-12-30')
+    ->seller(
+        Party::person('43000000A', 'Laura', 'Hernandez')
+            ->address('C/ Perez Galdos, 8', '35002', 'Las Palmas', 'Las Palmas')
+            ->email('laura@freelance.com')
+    )
+    ->buyer(
+        Party::company('A28000001', 'Empresa Madrid S.L.')
+            ->address('C/ Gran Via, 50', '28013', 'Madrid', 'Madrid')
+    )
+    ->line('Consultoria IT', price: 1000.00, igic: 7, irpf: 15)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-01-30'
+    )
+    ->legalLiteral('Operacion sujeta a IGIC 7% y retencion IRPF 15%. REF Canario.')
+    ->export('factura-igic-irpf.xsig');
+```
+
+<Tip>
+**Calculation**: For a €1,000 service with IGIC 7% and IRPF 15%:
+- Base: €1,000
+- IGIC (7%): +€70
+- IRPF (15%): -€150
+- **Total to receive**: €920
+</Tip>
+
+## Peninsular Buyer from Canary Seller
+
+When invoicing from the Canary Islands to mainland Spain, use IGIC:
+
+```php
+Invoice::create('FAC-PENINSULA-001')
+    ->date('2024-12-28')
+    ->seller(
+        Party::company('B76123456', 'Tech Canarias S.L.')
+            ->address('C/ Bravo Murillo, 3', '35007', 'Las Palmas', 'Las Palmas')
+    )
+    ->buyer(
+        Party::company('B28123456', 'Barcelona Solutions S.L.')
+            ->address('Passeig de Gracia, 100', '08008', 'Barcelona', 'Barcelona')
+    )
+    ->line('Licencia software SaaS', price: 2000.00, igic: 7)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-01-28'
+    )
+    ->legalLiteral(
+        'Operacion sujeta al REF Canario. Aplicable IGIC 7%. '
+        . 'El comprador no esta sujeto a inversion del sujeto pasivo.'
+    )
+    ->export('factura-canarias-peninsula.xsig');
+```
+
+## Legal Literal Examples
+
+Always include a legal literal explaining the tax regime:
+
+<CodeGroup>
+
+```php General IGIC
+->legalLiteral(
+    'Factura exenta de IVA por aplicacion del REF Canario. '
+    . 'IGIC aplicado al tipo general del 7%.'
+)
+```
+
+```php IGIC + REIGIC
+->legalLiteral(
+    'Operacion sujeta a IGIC 7% y REIGIC 0.5% segun REF Canario. '
+    . 'Regimen especial del comercio minorista.'
+)
+```
+
+```php Mixed Rates
+->legalLiteral(
+    'Factura sujeta a diversos tipos de IGIC (3%, 7%, 15%) '
+    . 'segun normativa REF Canario vigente.'
+)
+```
+
+</CodeGroup>
+
+## Billing Period for Services
+
+For monthly services in the Canary Islands:
+
+```php
+Invoice::create('FAC-PERIODO-001')
+    ->series('S')
+    ->date('2025-01-05')
+    ->billingPeriod(from: '2024-12-01', to: '2024-12-31')
+    ->seller(
+        Party::company('B76123456', 'Hosting Canarias S.L.')
+            ->address('C/ Nestor de la Torre, 12', '35010', 'Las Palmas', 'Las Palmas')
+    )
+    ->buyer(
+        Party::company('A28000001', 'Cliente Demo S.L.')
+            ->address('C/ Gran Via, 1', '28013', 'Madrid', 'Madrid')
+    )
+    ->line('Hosting compartido', price: 29.90, igic: 7)
+    ->line('Mantenimiento WordPress', price: 150.00, igic: 7)
+    ->directDebitPayment(
+        iban: 'ES80 0049 1500 0512 3456 7890',
+        dueDate: '2025-01-10'
+    )
+    ->legalLiteral('Servicio prestado en diciembre 2024. IGIC 7% tipo general REF Canario.')
+    ->export('factura-periodo-igic.xsig');
+```
+
+## Validation
+
+<Warning>
+**Don't mix VAT and IGIC**: Each invoice must use only one tax system.
+
+```php
+// ❌ WRONG - Will create validation issues
+->line('Service A', price: 100, vat: 21)   // IVA
+->line('Service B', price: 200, igic: 7)   // IGIC
+
+// ✅ CORRECT - Use only IGIC
+->line('Service A', price: 100, igic: 7)
+->line('Service B', price: 200, igic: 7)
+```
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Invoice" icon="file-invoice" href="/examples/basic-invoice">
+    Learn the fundamentals of invoice creation
+  </Card>
+  
+  <Card title="Split Payments" icon="money-bill-wave" href="/examples/split-payments">
+    Configure installment payments for IGIC invoices
+  </Card>
+  
+  <Card title="Tax Types" icon="percent" href="/core/lines-and-taxes">
+    Explore all 29 available tax types
+  </Card>
+  
+  <Card title="Tax Enum" icon="code" href="/api/enums/tax">
+    View all Tax enum values
+  </Card>
+</CardGroup>

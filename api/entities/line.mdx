@@ -1,0 +1,192 @@
+---
+title: Line
+description: Represents an invoice line item with quantity, price, taxes, and discounts
+---
+
+The `Line` entity represents a single line item on an invoice. Each line includes a description, quantity, unit price, applicable taxes, and optional details like discounts and article codes.
+
+## Constructor
+
+```php
+new Line(
+    string $description,
+    float $quantity,
+    float $unitPrice,
+    array $taxes = [],
+    ?string $articleCode = null,
+    ?float $discount = null,
+    ?string $detailedDescription = null,
+    ?UnitOfMeasure $unitOfMeasure = null,
+    ?SpecialTaxableEvent $specialTaxableEvent = null,
+    ?string $specialTaxableEventReason = null
+)
+```
+
+### Parameters
+
+<ParamField path="description" type="string" required>
+  Short description of the product or service
+</ParamField>
+
+<ParamField path="quantity" type="float" required>
+  Quantity of items
+</ParamField>
+
+<ParamField path="unitPrice" type="float" required>
+  Unit price without taxes (precio unitario sin impuestos)
+</ParamField>
+
+<ParamField path="taxes" type="TaxBreakdown[]" default="[]">
+  Array of tax breakdowns to apply to this line. See [TaxBreakdown](/api/entities/tax-breakdown)
+</ParamField>
+
+<ParamField path="articleCode" type="string|null" default="null">
+  Product or article code for identification
+</ParamField>
+
+<ParamField path="discount" type="float|null" default="null">
+  Discount percentage (0-100). For example, `10` represents a 10% discount
+</ParamField>
+
+<ParamField path="detailedDescription" type="string|null" default="null">
+  Extended description with additional details
+</ParamField>
+
+<ParamField path="unitOfMeasure" type="UnitOfMeasure|null" default="null">
+  Unit of measure for the quantity. See [UnitOfMeasure](/api/enums/unit-of-measure)
+</ParamField>
+
+<ParamField path="specialTaxableEvent" type="SpecialTaxableEvent|null" default="null">
+  Special tax treatment code. See [SpecialTaxableEvent](/api/enums/special-taxable-event)
+</ParamField>
+
+<ParamField path="specialTaxableEventReason" type="string|null" default="null">
+  Reason for the special tax treatment (motivo de la fiscalidad especial)
+</ParamField>
+
+## Properties
+
+All constructor parameters are exposed as public readonly properties:
+
+<ResponseField name="description" type="string">
+  Short description of the product or service
+</ResponseField>
+
+<ResponseField name="quantity" type="float">
+  Quantity of items
+</ResponseField>
+
+<ResponseField name="unitPrice" type="float">
+  Unit price without taxes
+</ResponseField>
+
+<ResponseField name="taxes" type="TaxBreakdown[]">
+  Array of tax breakdowns
+</ResponseField>
+
+<ResponseField name="articleCode" type="string|null">
+  Product or article code
+</ResponseField>
+
+<ResponseField name="discount" type="float|null">
+  Discount percentage
+</ResponseField>
+
+<ResponseField name="detailedDescription" type="string|null">
+  Extended description
+</ResponseField>
+
+<ResponseField name="unitOfMeasure" type="UnitOfMeasure|null">
+  Unit of measure
+</ResponseField>
+
+<ResponseField name="specialTaxableEvent" type="SpecialTaxableEvent|null">
+  Special tax treatment code
+</ResponseField>
+
+<ResponseField name="specialTaxableEventReason" type="string|null">
+  Reason for special tax treatment
+</ResponseField>
+
+## Methods
+
+### grossAmount()
+
+Calculates the gross amount for this line (quantity × price - discount).
+
+```php
+public function grossAmount(): float
+```
+
+**Returns:** The gross amount rounded to 2 decimal places
+
+## Example Usage
+
+### Basic Line Item
+
+```php
+use PhpFacturae\Entities\Line;
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$line = new Line(
+    description: 'Web Development Services',
+    quantity: 10,
+    unitPrice: 50.00,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, 21),
+    ]
+);
+
+echo $line->grossAmount(); // 500.00
+```
+
+### Line with Discount
+
+```php
+$line = new Line(
+    description: 'Premium Support Package',
+    quantity: 1,
+    unitPrice: 1000.00,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, 21),
+    ],
+    discount: 10 // 10% discount
+);
+
+echo $line->grossAmount(); // 900.00
+```
+
+### Detailed Line Item
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$line = new Line(
+    description: 'Organic Olive Oil',
+    quantity: 24,
+    unitPrice: 8.50,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, 10),
+    ],
+    articleCode: 'OLV-001',
+    detailedDescription: 'Extra virgin olive oil from Andalusia, 1L bottles',
+    unitOfMeasure: UnitOfMeasure::Bottles,
+    discount: 5
+);
+```
+
+### Line with Special Tax Treatment
+
+```php
+use PhpFacturae\Enums\SpecialTaxableEvent;
+
+$line = new Line(
+    description: 'Educational Services',
+    quantity: 1,
+    unitPrice: 500.00,
+    taxes: [],
+    specialTaxableEvent: SpecialTaxableEvent::Exempt,
+    specialTaxableEventReason: 'Article 20.1.9 - Educational services'
+);
+```

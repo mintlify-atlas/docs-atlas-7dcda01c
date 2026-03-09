@@ -1,80 +1,484 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Create your first FacturaE invoice in under 5 minutes
 ---
 
-## Get started in three steps
+# Quickstart Guide
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through creating a complete, valid FacturaE invoice from scratch.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+Make sure you've [installed PHP FacturaE](/installation) via Composer:
+
+```bash
+composer require php-facturae/php-facturae
+```
+
+## Your First Invoice
+
+Let's create a simple invoice with a seller, buyer, line item, and payment method.
+
+### Complete Example
+
+```php invoice.php
+<?php
+
+require_once 'vendor/autoload.php';
+
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+$invoice = Invoice::create('FAC-001')
+    ->series('A')
+    ->date('2025-03-01')
+    ->seller(
+        Party::company('B12345678', 'Mi Empresa S.L.')
+            ->address('C/ Mayor 10', '28013', 'Madrid', 'Madrid')
+            ->email('[email protected]')
+    )
+    ->buyer(
+        Party::person('12345678Z', 'Laura', 'Gómez', 'Ruiz')
+            ->address('C/ Sol 3', '28012', 'Madrid', 'Madrid')
+            ->email('[email protected]')
+    )
+    ->line('Diseño de logotipo', price: 450.00, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-03-31'
+    )
+    ->export('factura.xml');
+
+echo "✓ Invoice generated: factura.xml\n";
+```
+
+<Tip>
+Run this script with `php invoice.php` to generate your first invoice!
+</Tip>
+
+## Step-by-Step Breakdown
+
+Let's break down each part of the invoice creation process.
+
+<Steps>
+  <Step title="Create the invoice">
+    Start by creating an invoice with a unique number:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```php
+    use PhpFacturae\Invoice;
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    $invoice = Invoice::create('FAC-001');
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    The invoice number is **required** and must be unique. You can add an optional series:
+    
+    ```php
+    $invoice = Invoice::create('FAC-001')->series('A');
+    ```
+    
+    <Info>
+    The issue date defaults to the current date/time. Use `->date()` to set a specific date.
+    </Info>
+  </Step>
+  
+  <Step title="Set invoice date">
+    Specify when the invoice was issued:
+    
+    ```php
+    $invoice->date('2025-03-01');
+    ```
+    
+    You can also pass a `DateTimeImmutable` object:
+    
+    ```php
+    $invoice->date(new DateTimeImmutable('2025-03-01'));
+    ```
+  </Step>
+  
+  <Step title="Define the seller (issuer)">
+    Create the party issuing the invoice. Use `Party::company()` for legal entities:
+    
+    ```php
+    use PhpFacturae\Party;
+    
+    $seller = Party::company('B12345678', 'Mi Empresa S.L.')
+        ->address(
+            street: 'C/ Mayor 10',
+            postalCode: '28013',
+            town: 'Madrid',
+            province: 'Madrid'
+        )
+        ->email('[email protected]')
+        ->phone('+34 91 123 45 67');
+    
+    $invoice->seller($seller);
+    ```
+    
+    <Note>
+    The tax number (`B12345678`) must be a valid Spanish NIF/CIF or foreign tax ID. The address is required.
+    </Note>
+    
+    For individual persons, use `Party::person()`:
+    
+    ```php
+    $seller = Party::person(
+        taxNumber: '12345678Z',
+        name: 'María',
+        firstSurname: 'García',
+        lastSurname: 'López'
+    );
+    ```
+  </Step>
+  
+  <Step title="Define the buyer (recipient)">
+    Similarly, create the party receiving the invoice:
+    
+    ```php
+    $buyer = Party::person('12345678Z', 'Laura', 'Gómez', 'Ruiz')
+        ->address('C/ Sol 3', '28012', 'Madrid', 'Madrid')
+        ->email('[email protected]');
+    
+    $invoice->buyer($buyer);
+    ```
+    
+    For foreign buyers, specify the country code:
+    
+    ```php
+    $buyer = Party::company('FR12345678901', 'Entreprise SAS')
+        ->address(
+            street: '12 Rue de la Paix',
+            postalCode: '75002',
+            town: 'Paris',
+            province: 'Île-de-France',
+            countryCode: 'FRA'  // ISO 3166-1 alpha-3
+        );
+    ```
+  </Step>
+  
+  <Step title="Add line items">
+    Add products or services to the invoice. The `->line()` method provides shortcuts for Spanish taxes:
+    
+    ```php
+    $invoice->line(
+        description: 'Diseño de logotipo',
+        price: 450.00,      // Unit price (excluding VAT)
+        quantity: 1,        // Optional, defaults to 1
+        vat: 21             // VAT percentage
+    );
+    ```
+    
+    Add multiple lines:
+    
+    ```php
+    $invoice
+        ->line('Diseño de logotipo', price: 450.00, vat: 21)
+        ->line('Hosting anual', price: 120.00, vat: 21)
+        ->line('Dominio .es', price: 15.00, vat: 21);
+    ```
+    
+    <Tip>
+    You can specify quantity, discounts, and article codes:
+    
+    ```php
+    $invoice->line(
+        description: 'Lámpara LED',
+        price: 20.14,
+        quantity: 3,
+        vat: 21,
+        discount: 10,           // 10% discount
+        articleCode: 'LED-001'
+    );
+    ```
+    </Tip>
+  </Step>
+  
+  <Step title="Add payment information">
+    Specify how the invoice should be paid. PHP FacturaE provides shortcuts for common payment methods:
+    
+    **Bank transfer:**
+    ```php
+    $invoice->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-03-31'
+    );
+    ```
+    
+    **Cash payment:**
+    ```php
+    $invoice->cashPayment(dueDate: '2025-03-15');
+    ```
+    
+    **Card payment:**
+    ```php
+    $invoice->cardPayment(dueDate: '2025-03-01');
+    ```
+    
+    **Direct debit:**
+    ```php
+    $invoice->directDebitPayment(
+        iban: 'ES80 0000 0000 0000 0000 0001',
+        dueDate: '2025-03-10'
+    );
+    ```
+    
+    <Info>
+    If you don't specify an amount, it will default to the invoice total. You can split payments manually by calling the method multiple times with different amounts.
+    </Info>
+  </Step>
+  
+  <Step title="Export the invoice">
+    Generate and save the XML file:
+    
+    ```php
+    $invoice->export('factura.xml');
+    ```
+    
+    Or get the XML as a string:
+    
+    ```php
+    $xml = $invoice->toXml();
+    echo $xml;
+    ```
+    
+    <Warning>
+    The `export()` and `toXml()` methods automatically validate the invoice against FacturaE XSD schemas. If validation fails, an `InvoiceValidationException` is thrown with detailed error messages.
+    </Warning>
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Advanced Tax Scenarios
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Spanish Tax Examples
 
-### Step 3: Go live
+<CodeGroup>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```php IVA + IRPF Retention
+// Professional services with VAT and income tax withholding
+$invoice->line(
+    description: 'Consultoría informática',
+    price: 500.00,
+    vat: 21,      // 21% VAT
+    irpf: 15      // 15% IRPF withholding
+);
+```
 
-## Next steps
+```php Canary Islands (IGIC)
+// Product sold in Canary Islands
+$invoice->line(
+    description: 'Producto canario',
+    price: 100.00,
+    igic: 7       // 7% IGIC (Canary Islands tax)
+);
+```
 
-Now that you have your docs running, explore these key features:
+```php Equivalence Surcharge
+// Jewelry with equivalence surcharge
+$invoice->line(
+    description: 'Anillo de oro',
+    price: 200.00,
+    vat: 21,
+    surcharge: 5.2    // 5.2% recargo de equivalencia
+);
+```
 
-<CardGroup cols={2}>
+```php Exempt Line
+// Tax-exempt service
+$invoice->exemptLine(
+    description: 'Curso de formación FUNDAE',
+    price: 2000.00,
+    reason: 'Exenta art. 20.Uno.9 LIVA'
+);
+```
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+</CodeGroup>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+### Multiple Taxes per Line
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+For more complex scenarios, use `customLine()` with `TaxBreakdown` objects:
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
 
-</CardGroup>
+$invoice->customLine(
+    description: 'Producto con múltiples impuestos',
+    price: 300.00,
+    taxes: [
+        new TaxBreakdown(Tax::IGIC, 7),
+        new TaxBreakdown(Tax::REIGIC, 0.5),
+    ]
+);
+```
+
+## Split Payments
+
+For invoices paid in installments:
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2025-04-01',
+    intervalDays: 30,
+    iban: 'ES91 2100 0418 4502 0005 1332'
+);
+```
+
+This creates 3 payments:
+- 2025-04-01: 1/3 of total
+- 2025-05-01: 1/3 of total
+- 2025-05-31: 1/3 of total (with cent adjustment)
+
+## Complete Real-World Example
+
+Here's a more comprehensive invoice with multiple features:
+
+```php complete-invoice.php
+<?php
+
+require_once 'vendor/autoload.php';
+
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice = Invoice::create('2025-042')
+    ->series('A')
+    ->date('2025-03-15')
+    ->description('Servicios de desarrollo web y hosting')
+    
+    // Seller (your company)
+    ->seller(
+        Party::company('B12345678', 'TechDev Solutions S.L.')
+            ->tradeName('TechDev')
+            ->address('Paseo de la Castellana 123', '28046', 'Madrid', 'Madrid')
+            ->email('[email protected]')
+            ->phone('+34 91 234 56 78')
+            ->website('https://techdev.example.com')
+    )
+    
+    // Buyer
+    ->buyer(
+        Party::company('B87654321', 'Retail España S.A.')
+            ->address('Gran Vía 45', '28013', 'Madrid', 'Madrid')
+            ->email('[email protected]')
+    )
+    
+    // Line items
+    ->line(
+        description: 'Desarrollo web personalizado',
+        price: 2500.00,
+        quantity: 1,
+        vat: 21,
+        irpf: 15,
+        articleCode: 'DEV-WEB-001'
+    )
+    ->line(
+        description: 'Hosting Premium (12 meses)',
+        price: 25.00,
+        quantity: 12,
+        vat: 21,
+        unit: UnitOfMeasure::Month,
+        articleCode: 'HOST-PREM'
+    )
+    ->line(
+        description: 'Certificado SSL',
+        price: 80.00,
+        vat: 21,
+        articleCode: 'SSL-CERT'
+    )
+    
+    // General discount
+    ->generalDiscount('Cliente VIP', rate: 5)
+    
+    // Payment in 2 installments
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-04-15',
+        amount: 1500.00
+    )
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2025-05-15'
+        // Remaining amount will be calculated automatically
+    )
+    
+    // Export
+    ->export('invoices/2025-042.xml');
+
+echo "✓ Invoice 2025-042 generated successfully!\n";
+echo "Total lines: " . count($invoice->getLines()) . "\n";
+echo "Payment installments: " . count($invoice->getPayments()) . "\n";
+```
+
+## Validation
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+PHP FacturaE automatically validates your invoice when you call `toXml()` or `export()`.
 </Note>
+
+If validation fails, you'll get detailed error messages:
+
+```php
+use PhpFacturae\Exceptions\InvoiceValidationException;
+
+try {
+    $invoice->export('factura.xml');
+} catch (InvoiceValidationException $e) {
+    echo "Validation errors:\n";
+    foreach ($e->getErrors() as $error) {
+        echo "  - $error\n";
+    }
+}
+```
+
+Common validation errors:
+- Missing required fields (seller, buyer, lines)
+- Invalid tax numbers (NIF/CIF format)
+- Invalid postal codes
+- Empty line descriptions
+- Negative prices or quantities
+
+## Next Steps
+
+You've created your first invoice! Now explore more advanced features:
+
+<CardGroup cols={2}>
+  <Card title="Digital Signatures" icon="signature" href="/core/signing">
+    Sign invoices with XAdES-EPES using PKCS#12 or PEM certificates
+  </Card>
+  
+  <Card title="Corrective Invoices" icon="file-invoice" href="/guides/corrective-invoices">
+    Create rectificative invoices to correct previous ones
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/invoice">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Use constants for common values:**
+
+```php
+define('MY_COMPANY_TAX_NUMBER', 'B12345678');
+define('MY_COMPANY_IBAN', 'ES91 2100 0418 4502 0005 1332');
+
+$invoice->seller(
+    Party::company(MY_COMPANY_TAX_NUMBER, 'Mi Empresa S.L.')
+        ->address('...', '...', '...', '...')
+);
+```
+</Tip>
+
+<Warning>
+**Always validate invoice numbers are unique** in your application to avoid duplicate invoices with the same number.
+</Warning>
+
+<Info>
+**Invoice numbering:** Spanish law requires sequential numbering within each series. Make sure your application tracks the last used number per series.
+</Info>

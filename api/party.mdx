@@ -1,0 +1,470 @@
+---
+title: Party
+description: Represents a party (company or person) in an invoice
+---
+
+The `Party` class represents either the seller or buyer in a FacturaE invoice. It supports both legal entities (companies) and natural persons.
+
+## Static Constructors
+
+### company()
+
+Create a legal entity (company) party.
+
+<ParamField path="taxNumber" type="string" required>
+  Tax identification number (NIF/CIF)
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Company legal name
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns a new Party instance representing a company
+</ResponseField>
+
+```php
+$company = Party::company('B12345678', 'Mi Empresa SL');
+```
+
+### person()
+
+Create a natural person party.
+
+<ParamField path="taxNumber" type="string" required>
+  Tax identification number (NIF/DNI)
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Person's first name
+</ParamField>
+
+<ParamField path="firstSurname" type="string" required>
+  Person's first surname
+</ParamField>
+
+<ParamField path="lastSurname" type="string|null">
+  Person's second surname (optional)
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns a new Party instance representing a person
+</ResponseField>
+
+```php
+$person = Party::person(
+    taxNumber: '12345678A',
+    name: 'Juan',
+    firstSurname: 'García',
+    lastSurname: 'López'
+);
+```
+
+## Fluent Setters
+
+### address()
+
+Set the party's address.
+
+<ParamField path="street" type="string" required>
+  Street address
+</ParamField>
+
+<ParamField path="postalCode" type="string" required>
+  Postal code
+</ParamField>
+
+<ParamField path="town" type="string" required>
+  Town/city name
+</ParamField>
+
+<ParamField path="province" type="string" required>
+  Province name
+</ParamField>
+
+<ParamField path="countryCode" type="string" default="ESP">
+  ISO 3166-1 alpha-3 country code
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->address(
+    street: 'Calle Mayor 1, 3º A',
+    postalCode: '28001',
+    town: 'Madrid',
+    province: 'Madrid',
+    countryCode: 'ESP'
+);
+```
+
+### tradeName()
+
+Set the trade name (nombre comercial).
+
+<ParamField path="tradeName" type="string" required>
+  Trade name
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->tradeName('Nombre Comercial');
+```
+
+### email()
+
+Set the email address.
+
+<ParamField path="email" type="string" required>
+  Email address
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->email('contacto@empresa.com');
+```
+
+### phone()
+
+Set the phone number.
+
+<ParamField path="phone" type="string" required>
+  Phone number
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->phone('+34912345678');
+```
+
+### fax()
+
+Set the fax number.
+
+<ParamField path="fax" type="string" required>
+  Fax number
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->fax('+34912345679');
+```
+
+### website()
+
+Set the website URL.
+
+<ParamField path="website" type="string" required>
+  Website URL
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->website('https://www.empresa.com');
+```
+
+### contactPeople()
+
+Set the contact person name.
+
+<ParamField path="value" type="string" required>
+  Contact person name
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->contactPeople('Juan García');
+```
+
+### cnoCnae()
+
+Set the CNO or CNAE code (economic activity classification).
+
+<ParamField path="value" type="string" required>
+  CNO/CNAE code
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->cnoCnae('6201');
+```
+
+### ineTownCode()
+
+Set the INE town code.
+
+<ParamField path="value" type="string" required>
+  INE town code
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->ineTownCode('28079');
+```
+
+### merchantRegister()
+
+Set the merchant register data (Registro Mercantil).
+
+<ParamField path="book" type="string|null">
+  Book (Tomo)
+</ParamField>
+
+<ParamField path="register" type="string|null">
+  Register name
+</ParamField>
+
+<ParamField path="sheet" type="string|null">
+  Sheet (Hoja)
+</ParamField>
+
+<ParamField path="folio" type="string|null">
+  Folio
+</ParamField>
+
+<ParamField path="section" type="string|null">
+  Section (Sección)
+</ParamField>
+
+<ParamField path="volume" type="string|null">
+  Volume (Libro)
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->merchantRegister(
+    book: '1234',
+    register: 'Madrid',
+    sheet: 'M-12345',
+    folio: '100',
+    section: '8',
+    volume: '5678'
+);
+```
+
+### centre()
+
+Add an administrative centre.
+
+<ParamField path="role" type="string" required>
+  Role code (e.g., '01' for fiscal, '02' for receiver, '03' for payer)
+</ParamField>
+
+<ParamField path="code" type="string" required>
+  Centre code
+</ParamField>
+
+<ParamField path="name" type="string|null">
+  Centre name
+</ParamField>
+
+<ResponseField name="return" type="Party">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$party->centre(
+    role: '01',
+    code: 'C001',
+    name: 'Oficina Central'
+);
+```
+
+## Getters
+
+### isLegalEntity()
+
+<ResponseField name="return" type="bool">
+  Returns true if the party is a company, false if it's a person
+</ResponseField>
+
+```php
+if ($party->isLegalEntity()) {
+    // Handle company
+}
+```
+
+### taxNumber()
+
+<ResponseField name="return" type="string">
+  Returns the tax identification number
+</ResponseField>
+
+### name()
+
+<ResponseField name="return" type="string">
+  Returns the name (company name or person's first name)
+</ResponseField>
+
+### firstSurname()
+
+<ResponseField name="return" type="string|null">
+  Returns the first surname (only for persons)
+</ResponseField>
+
+### lastSurname()
+
+<ResponseField name="return" type="string|null">
+  Returns the second surname (only for persons)
+</ResponseField>
+
+### getTradeName()
+
+<ResponseField name="return" type="string|null">
+  Returns the trade name
+</ResponseField>
+
+### getAddress()
+
+<ResponseField name="return" type="Address|null">
+  Returns the Address entity
+</ResponseField>
+
+### getEmail()
+
+<ResponseField name="return" type="string|null">
+  Returns the email address
+</ResponseField>
+
+### getPhone()
+
+<ResponseField name="return" type="string|null">
+  Returns the phone number
+</ResponseField>
+
+### getFax()
+
+<ResponseField name="return" type="string|null">
+  Returns the fax number
+</ResponseField>
+
+### getWebsite()
+
+<ResponseField name="return" type="string|null">
+  Returns the website URL
+</ResponseField>
+
+### getContactPeople()
+
+<ResponseField name="return" type="string|null">
+  Returns the contact person name
+</ResponseField>
+
+### getCnoCnae()
+
+<ResponseField name="return" type="string|null">
+  Returns the CNO/CNAE code
+</ResponseField>
+
+### getIneTownCode()
+
+<ResponseField name="return" type="string|null">
+  Returns the INE town code
+</ResponseField>
+
+### getBook()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register book
+</ResponseField>
+
+### getMerchantRegister()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register name
+</ResponseField>
+
+### getSheet()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register sheet
+</ResponseField>
+
+### getFolio()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register folio
+</ResponseField>
+
+### getSection()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register section
+</ResponseField>
+
+### getVolume()
+
+<ResponseField name="return" type="string|null">
+  Returns the merchant register volume
+</ResponseField>
+
+### getCentres()
+
+<ResponseField name="return" type="array">
+  Returns array of centres: `array<int, array{role: string, code: string, name: ?string}>`
+</ResponseField>
+
+## Complete Example
+
+```php
+use PhpFacturae\Party;
+
+// Company example
+$seller = Party::company('B12345678', 'Mi Empresa SL')
+    ->address(
+        street: 'Calle Mayor 1, 3º A',
+        postalCode: '28001',
+        town: 'Madrid',
+        province: 'Madrid'
+    )
+    ->tradeName('Nombre Comercial')
+    ->email('ventas@empresa.com')
+    ->phone('+34912345678')
+    ->website('https://www.empresa.com')
+    ->cnoCnae('6201');
+
+// Person example
+$buyer = Party::person(
+    taxNumber: '12345678A',
+    name: 'Juan',
+    firstSurname: 'García',
+    lastSurname: 'López'
+)
+    ->address(
+        street: 'Gran Vía 10',
+        postalCode: '28013',
+        town: 'Madrid',
+        province: 'Madrid'
+    )
+    ->email('juan.garcia@example.com')
+    ->phone('+34987654321');
+```

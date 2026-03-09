@@ -1,0 +1,281 @@
+---
+title: Signer
+description: Digital signature support for FacturaE invoices
+---
+
+The `Signer` facade provides convenient methods to create invoice signers. The signing implementation uses XAdES-EPES format compliant with the Spanish FacturaE signing policy v3.1.
+
+## Signer Facade
+
+The `Signer` class is a convenience facade for creating signer instances.
+
+### pfx()
+
+Create a signer from a PKCS#12 certificate file (.pfx or .p12).
+
+<ParamField path="path" type="string" required>
+  Path to the PKCS#12 certificate file
+</ParamField>
+
+<ParamField path="passphrase" type="string|null">
+  Certificate passphrase (optional)
+</ParamField>
+
+<ResponseField name="return" type="Pkcs12Signer">
+  Returns a Pkcs12Signer instance
+</ResponseField>
+
+```php
+use PhpFacturae\Signer;
+
+$signer = Signer::pfx('path/to/cert.pfx', 'password');
+
+$invoice->sign($signer);
+```
+
+### pem()
+
+Create a signer from PEM-encoded certificate and private key files.
+
+<ParamField path="certPath" type="string" required>
+  Path to the PEM certificate file
+</ParamField>
+
+<ParamField path="keyPath" type="string" required>
+  Path to the PEM private key file
+</ParamField>
+
+<ParamField path="passphrase" type="string|null">
+  Private key passphrase (optional)
+</ParamField>
+
+<ResponseField name="return" type="Pkcs12Signer">
+  Returns a Pkcs12Signer instance
+</ResponseField>
+
+```php
+use PhpFacturae\Signer;
+
+$signer = Signer::pem(
+    certPath: 'path/to/cert.pem',
+    keyPath: 'path/to/key.pem',
+    passphrase: 'password'
+);
+
+$invoice->sign($signer);
+```
+
+## Pkcs12Signer
+
+The `Pkcs12Signer` class implements XAdES-EPES digital signatures for FacturaE documents.
+
+### Static Constructors
+
+#### pfx()
+
+Create signer from a PKCS#12 file.
+
+<ParamField path="path" type="string" required>
+  Path to the PKCS#12 certificate file
+</ParamField>
+
+<ParamField path="passphrase" type="string|null">
+  Certificate passphrase (optional)
+</ParamField>
+
+<ResponseField name="return" type="Pkcs12Signer">
+  Returns a Pkcs12Signer instance
+</ResponseField>
+
+<ResponseField name="throws" type="RuntimeException">
+  If certificate file not found or cannot be read
+</ResponseField>
+
+```php
+use PhpFacturae\Signer\Pkcs12Signer;
+
+$signer = Pkcs12Signer::pfx('cert.pfx', 'password');
+```
+
+#### pem()
+
+Create signer from PEM-encoded certificate and key files.
+
+<ParamField path="certPath" type="string" required>
+  Path to the PEM certificate file
+</ParamField>
+
+<ParamField path="keyPath" type="string" required>
+  Path to the PEM private key file
+</ParamField>
+
+<ParamField path="passphrase" type="string|null">
+  Private key passphrase (optional)
+</ParamField>
+
+<ResponseField name="return" type="Pkcs12Signer">
+  Returns a Pkcs12Signer instance
+</ResponseField>
+
+<ResponseField name="throws" type="RuntimeException">
+  If certificate or key file not found or cannot be read
+</ResponseField>
+
+```php
+use PhpFacturae\Signer\Pkcs12Signer;
+
+$signer = Pkcs12Signer::pem(
+    certPath: 'cert.pem',
+    keyPath: 'key.pem',
+    passphrase: 'password'
+);
+```
+
+### timestamp()
+
+Add timestamp authority (TSA) to the signature for long-term validity.
+
+<ParamField path="url" type="string" required>
+  TSA endpoint URL (RFC 3161 compliant)
+</ParamField>
+
+<ParamField path="user" type="string|null">
+  TSA username for authentication (optional)
+</ParamField>
+
+<ParamField path="password" type="string|null">
+  TSA password for authentication (optional)
+</ParamField>
+
+<ResponseField name="return" type="Pkcs12Signer">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+// Free TSA (no authentication)
+$signer = Signer::pfx('cert.pfx', 'password')
+    ->timestamp('https://freetsa.org/tsr');
+
+// TSA with authentication
+$signer = Signer::pfx('cert.pfx', 'password')
+    ->timestamp(
+        url: 'https://tsa.example.com/tsr',
+        user: 'username',
+        password: 'tsa_password'
+    );
+```
+
+### sign()
+
+Sign a FacturaE XML document.
+
+<ParamField path="xml" type="string" required>
+  XML string of the invoice to sign
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Returns the signed XML string with XAdES-EPES signature
+</ResponseField>
+
+<ResponseField name="throws" type="RuntimeException">
+  If XML parsing fails or signature generation fails
+</ResponseField>
+
+```php
+$signedXml = $signer->sign($xml);
+```
+
+<Note>
+This method is typically called automatically when using `Invoice::toXml()` or `Invoice::export()` if a signer has been set via `Invoice::sign()`.
+</Note>
+
+## InvoiceSigner Interface
+
+All signers implement the `InvoiceSigner` interface:
+
+```php
+namespace PhpFacturae\Signer;
+
+interface InvoiceSigner
+{
+    /**
+     * Sign a FacturaE XML string and return the signed XML.
+     */
+    public function sign(string $xml): string;
+}
+```
+
+You can implement this interface to create custom signers:
+
+```php
+use PhpFacturae\Signer\InvoiceSigner;
+
+class CustomSigner implements InvoiceSigner
+{
+    public function sign(string $xml): string
+    {
+        // Your custom signing logic
+        return $signedXml;
+    }
+}
+```
+
+## Signature Details
+
+The `Pkcs12Signer` generates:
+
+- **XAdES-EPES** signatures (advanced electronic signatures with explicit policy)
+- **Enveloped signature** format (signature included within the signed document)
+- **FacturaE policy v3.1** compliance
+- **SHA-256** digest algorithm
+- **RSA-SHA256** signature algorithm
+- **Optional RFC 3161 timestamps** for long-term validity
+
+### Signature Policy
+
+The signer uses the official FacturaE signing policy:
+
+- **Policy Name**: Política de Firma FacturaE v3.1
+- **Policy URL**: http://www.facturae.es/politica_de_firma_formato_facturae/politica_de_firma_formato_facturae_v3_1.pdf
+- **Policy Digest** (SHA-1): `Ohixl6upD6av8N7pEvDABhEL6hM=`
+
+## Complete Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Signer;
+
+// Create invoice
+$invoice = Invoice::create('INV-2024-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Product', price: 100, vat: 21);
+
+// Sign with PKCS#12 certificate
+$invoice->sign(Signer::pfx('cert.pfx', 'password'));
+
+// Export signed XML
+$invoice->export('signed-invoice.xml');
+
+// Sign with timestamp for long-term validity
+$invoice->sign(
+    Signer::pfx('cert.pfx', 'password')
+        ->timestamp('https://freetsa.org/tsr')
+);
+
+// Sign with PEM certificate and key
+$invoice->sign(
+    Signer::pem('cert.pem', 'key.pem', 'password')
+        ->timestamp('https://freetsa.org/tsr')
+);
+```
+
+## Timestamp Authorities
+
+Some free TSA services you can use:
+
+- **FreeTSA**: `https://freetsa.org/tsr`
+- **Sectigo**: `http://timestamp.sectigo.com`
+- **DigiCert**: `http://timestamp.digicert.com`
+
+For production use, consider using a commercial TSA service for guaranteed availability and support.

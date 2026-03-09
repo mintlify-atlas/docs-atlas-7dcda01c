@@ -1,0 +1,316 @@
+---
+title: SpecialTaxableEvent
+description: Special taxable event codes for line items
+---
+
+The `SpecialTaxableEvent` enum represents special fiscal treatment codes for invoice line items. These codes indicate whether an operation is taxable, exempt, or not subject to tax.
+
+## Enum Cases
+
+| Case | Code | Spanish Name | Description |
+|------|------|--------------|-------------|
+| `Taxable` | `01` | Operación sujeta y no exenta | Taxable operation (not exempt) |
+| `Exempt` | `02` | Operación exenta | Tax-exempt operation |
+| `NotSubject` | `03` | Operación no sujeta | Operation not subject to tax |
+
+## Event Details
+
+### Taxable (01)
+
+**Taxable operations** are the default for most commercial transactions. The operation is subject to tax and not exempt.
+
+**Characteristics:**
+- Standard tax applies (IVA, IGIC, etc.)
+- Tax calculated and charged normally
+- Most common scenario
+- Full tax collection
+
+**When to use:**
+- Regular commercial sales
+- Standard services
+- Most B2B and B2C transactions
+- Default for most line items
+
+### Exempt (02)
+
+**Exempt operations** are subject to the tax system but specifically exempt from taxation under Spanish law.
+
+**Characteristics:**
+- Subject to tax rules but no tax charged
+- Legal exemption applies
+- Must document exemption reason
+- Still tracked for tax reporting
+
+**When to use:**
+- Educational services
+- Healthcare services
+- Financial services
+- Insurance operations
+- Certain exports
+- Cultural activities
+- Goods/services with legal tax exemption
+
+### NotSubject (03)
+
+**Not subject operations** fall outside the scope of the tax system entirely.
+
+**Characteristics:**
+- Outside tax jurisdiction
+- Not covered by tax law
+- No tax reporting required
+- Different from exempt
+
+**When to use:**
+- Operations outside Spain's tax territory
+- Transactions between non-Spanish entities
+- Activities outside commercial scope
+- Certain intra-EU transactions
+- Reverse charge situations
+
+## Usage Examples
+
+### Standard Taxable Operation
+
+```php
+use PhpFacturae\Enums\{Tax, SpecialTaxableEvent};
+
+// Regular sale - taxable operation (default)
+$invoice->addItem(
+    name: 'Laptop Computer',
+    quantity: 1,
+    price: 1000.00,
+    tax: Tax::IVA,
+    taxRate: 21.0,
+    specialTaxableEvent: SpecialTaxableEvent::Taxable
+);
+```
+
+### Tax-Exempt Operation
+
+```php
+use PhpFacturae\Enums\{Tax, SpecialTaxableEvent};
+
+// Educational service - exempt from tax
+$invoice->addItem(
+    name: 'Professional Training Course',
+    quantity: 1,
+    price: 500.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::Exempt
+);
+
+// Optional: Add explanation
+$invoice->setAdditionalInformation(
+    'Exempt per Article 20.1.9 of Spanish VAT Law'
+);
+```
+
+### Not Subject Operation
+
+```php
+use PhpFacturae\Enums\{Tax, SpecialTaxableEvent};
+
+// Intra-EU B2B sale with reverse charge
+$invoice->addItem(
+    name: 'Software License',
+    quantity: 1,
+    price: 2000.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::NotSubject
+);
+
+$invoice->setAdditionalInformation(
+    'Reverse charge - Article 196 EU VAT Directive'
+);
+```
+
+### Mixed Invoice with Different Events
+
+```php
+use PhpFacturae\Enums\{Tax, SpecialTaxableEvent};
+
+// Standard taxable product
+$invoice->addItem(
+    name: 'Office Supplies',
+    quantity: 10,
+    price: 50.00,
+    tax: Tax::IVA,
+    taxRate: 21.0,
+    specialTaxableEvent: SpecialTaxableEvent::Taxable
+);
+
+// Tax-exempt service
+$invoice->addItem(
+    name: 'Medical Consultation',
+    quantity: 1,
+    price: 100.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::Exempt
+);
+
+// Not subject to Spanish tax
+$invoice->addItem(
+    name: 'International Consulting',
+    quantity: 5,
+    price: 200.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::NotSubject
+);
+```
+
+## Common Exempt Operations
+
+### Healthcare
+```php
+// Medical services are typically exempt
+$invoice->addItem(
+    name: 'Dental Treatment',
+    quantity: 1,
+    price: 150.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::Exempt
+);
+```
+
+### Education
+```php
+// Educational services are typically exempt
+$invoice->addItem(
+    name: 'University Course',
+    quantity: 1,
+    price: 1200.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::Exempt
+);
+```
+
+### Financial Services
+```php
+// Financial services may be exempt
+$invoice->addItem(
+    name: 'Insurance Premium',
+    quantity: 1,
+    price: 500.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::Exempt
+);
+```
+
+## Common Not Subject Operations
+
+### Intra-EU B2B (Reverse Charge)
+```php
+// EU B2B with valid VAT number
+$invoice->addItem(
+    name: 'Goods to EU Business',
+    quantity: 100,
+    price: 10.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::NotSubject
+);
+```
+
+### Export Outside EU
+```php
+// Export to non-EU country
+$invoice->addItem(
+    name: 'Export to USA',
+    quantity: 50,
+    price: 20.00,
+    tax: Tax::IVA,
+    taxRate: 0.0,
+    specialTaxableEvent: SpecialTaxableEvent::NotSubject
+);
+```
+
+## Decision Tree
+
+Use this guide to choose the right special taxable event:
+
+```
+Is the operation in Spain's tax territory?
+├─ No → NotSubject
+└─ Yes → Is there a specific legal exemption?
+    ├─ Yes → Exempt
+    └─ No → Taxable
+```
+
+## Tax Rate Implications
+
+| Event | Tax Rate | Tax Charged |
+|-------|----------|-------------|
+| Taxable | Standard rate (21%, 10%, 4%) | Yes |
+| Exempt | 0% | No |
+| NotSubject | 0% | No |
+
+## Documentation Requirements
+
+### For Exempt Operations
+
+- Document legal basis for exemption
+- Reference applicable law article
+- Keep supporting documentation
+- Include in additional information field
+
+### For Not Subject Operations
+
+- Explain why not subject
+- Document reverse charge if applicable
+- Keep proof of customer location
+- Include relevant legal references
+
+## Common Mistakes
+
+### Using Exempt Instead of NotSubject
+
+```php
+// ❌ Wrong - Export is not subject, not exempt
+$invoice->addItem('Export', 1, 100.00, Tax::IVA, 0.0, 
+    SpecialTaxableEvent::Exempt);
+
+// ✓ Correct - Export is not subject to Spanish VAT
+$invoice->addItem('Export', 1, 100.00, Tax::IVA, 0.0, 
+    SpecialTaxableEvent::NotSubject);
+```
+
+### Forgetting to Set Special Event
+
+```php
+// ❌ Wrong - Defaults to Taxable but rate is 0%
+$invoice->addItem('Healthcare', 1, 100.00, Tax::IVA, 0.0);
+
+// ✓ Correct - Explicitly mark as exempt
+$invoice->addItem('Healthcare', 1, 100.00, Tax::IVA, 0.0,
+    SpecialTaxableEvent::Exempt);
+```
+
+## Validation Rules
+
+- `Taxable` operations must have tax rate > 0
+- `Exempt` operations should have tax rate = 0
+- `NotSubject` operations should have tax rate = 0
+- Special events must match the tax treatment
+- Supporting documentation recommended for Exempt and NotSubject
+
+## Notes
+
+- Default is `Taxable` for most operations
+- Always document exemptions and not-subject reasons
+- Consult tax advisor for complex situations
+- Rules vary by country and transaction type
+- Keep updated with Spanish tax law changes
+- Different rules apply for B2B vs B2C
+
+## See Also
+
+- [Tax](/api/enums/tax) - Tax type codes
+- [Invoice::addItem()](/api/classes/invoice#additem) - Adding line items
+- [InvoiceItem](/api/classes/invoice-item) - Line item configuration

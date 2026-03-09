@@ -1,0 +1,304 @@
+---
+title: Parties
+description: Configure invoice sellers and buyers with complete identity, address, and administrative information
+---
+
+## Overview
+
+Every FacturaE invoice requires two parties: a seller (issuer) and a buyer (recipient). The `Party` class provides static constructors for companies and individuals, with fluent methods for addresses, contact info, and FACe administrative centers.
+
+## Creating Parties
+
+### Companies
+
+Use `Party::company()` for legal entities:
+
+```php
+use PhpFacturae\Party;
+
+$company = Party::company(
+    taxNumber: 'B12345678',
+    name: 'Acme Corporation S.L.'
+);
+```
+
+<Info>
+Tax numbers are automatically normalized (trimmed and uppercased). Spanish CIF/NIF validation is performed during invoice export.
+</Info>
+
+### Individuals
+
+Use `Party::person()` for natural persons:
+
+```php
+$person = Party::person(
+    taxNumber: '12345678Z',
+    name: 'John',
+    firstSurname: 'Doe',
+    lastSurname: 'Smith'  // Optional
+);
+```
+
+The last surname is optional, but name and first surname are required for individuals.
+
+<Note>
+In Spanish documents, individuals have separate fields for name (nombre), first surname (primer apellido), and second surname (segundo apellido). This follows Spanish naming conventions.
+</Note>
+
+## Address Configuration
+
+Add a postal address to any party:
+
+```php
+$party->address(
+    street: 'Gran Via 1, 3rd Floor',
+    postalCode: '28013',
+    town: 'Madrid',
+    province: 'Madrid',
+    countryCode: 'ESP'  // Default: ESP
+);
+```
+
+<Steps>
+  <Step title="Street Address">
+    Full street address including building, floor, door, etc.
+    
+    ```php
+    'Calle Mayor 10, Piso 2, Puerta B'
+    ```
+  </Step>
+  
+  <Step title="Postal Code">
+    Spanish postal codes are validated (5 digits). International codes are also supported.
+    
+    ```php
+    postalCode: '28013'  // Spanish
+    postalCode: '75001'  // French (when countryCode: 'FRA')
+    ```
+  </Step>
+  
+  <Step title="Town and Province">
+    Municipality and province names:
+    
+    ```php
+    town: 'Madrid',
+    province: 'Madrid'
+    ```
+  </Step>
+  
+  <Step title="Country Code">
+    ISO 3166-1 alpha-3 country code (default: ESP for Spain):
+    
+    ```php
+    countryCode: 'ESP'  // Spain
+    countryCode: 'FRA'  // France
+    countryCode: 'DEU'  // Germany
+    ```
+  </Step>
+</Steps>
+
+## Contact Information
+
+Add communication details:
+
+```php
+$party->email('[email protected]')
+      ->phone('+34 91 123 4567')
+      ->fax('+34 91 123 4568')
+      ->website('https://example.com')
+      ->contactPeople('John Doe, Accounting Department');
+```
+
+All contact fields are optional but recommended for better communication.
+
+## Trade Name
+
+Set a commercial trading name different from the legal name:
+
+```php
+$party->tradeName('Acme Tech');
+```
+
+<Info>
+Trade names are useful when the legal company name differs from the brand name used in commerce.
+</Info>
+
+## Administrative Centers (FACe)
+
+For invoices submitted to Spanish public administrations via FACe, you must specify administrative centers:
+
+```php
+$buyer = Party::company('Q2819002D', 'Ministerio de Hacienda')
+    ->centre(
+        role: '01',  // Fiscal
+        code: 'L01281901',
+        name: 'Oficina Contable'
+    )
+    ->centre(
+        role: '02',  // Receptor
+        code: 'L01281902', 
+        name: 'Unidad Tramitadora'
+    )
+    ->centre(
+        role: '03',  // Pagador
+        code: 'L01281903',
+        name: 'Oficina Gestora'
+    );
+```
+
+<Warning>
+FACe requires specific administrative center codes. Contact your buyer to obtain the correct codes for:
+- **Role 01** (Fiscal): Accounting office code
+- **Role 02** (Receptor): Processing unit code  
+- **Role 03** (Pagador): Payment office code
+</Warning>
+
+### Multiple Centers
+
+You can add multiple administrative centers by calling `->centre()` multiple times:
+
+```php
+$party->centre('01', 'L01281901', 'Primary Accounting Office')
+      ->centre('02', 'L01281902', 'Processing Unit A')
+      ->centre('02', 'L01281903', 'Processing Unit B');
+```
+
+## Merchant Register Information
+
+For companies, you can include commercial registry data:
+
+```php
+$party->merchantRegister(
+    register: 'Madrid',
+    book: '1234',
+    folio: '56',
+    sheet: 'M-123456',
+    section: '8',
+    volume: '789'
+);
+```
+
+All parameters are optional. Include only the fields that apply to your registration.
+
+<Info>
+Merchant register information is required for certain invoice types and specific business regulations in Spain.
+</Info>
+
+## Economic Activity Codes
+
+### CNO/CNAE
+
+Set the National Classification of Economic Activities code:
+
+```php
+$party->cnoCnae('6201');  // Computer programming activities
+```
+
+### INE Town Code
+
+Set the National Statistics Institute town code:
+
+```php
+$party->ineTownCode('28079');  // Madrid
+```
+
+## Complete Example
+
+Here's a fully configured seller and buyer:
+
+```php
+use PhpFacturae\Party;
+
+// Seller (Service provider)
+$seller = Party::company('B12345678', 'Tech Solutions S.L.')
+    ->tradeName('TechSol')
+    ->address(
+        street: 'Calle Serrano 45, 2°B',
+        postalCode: '28001',
+        town: 'Madrid',
+        province: 'Madrid',
+        countryCode: 'ESP'
+    )
+    ->email('[email protected]')
+    ->phone('+34 91 123 4567')
+    ->website('https://techsol.es')
+    ->cnoCnae('6201')
+    ->merchantRegister(
+        register: 'Madrid',
+        book: '1234',
+        sheet: 'M-123456',
+        folio: '78',
+        section: '8'
+    );
+
+// Buyer (Public administration)
+$buyer = Party::company('Q2819002D', 'Ministerio de Hacienda y Administraciones Públicas')
+    ->address(
+        street: 'Calle Alcalá 5',
+        postalCode: '28014',
+        town: 'Madrid',
+        province: 'Madrid'
+    )
+    ->centre('01', 'L01281901', 'Oficina Contable')
+    ->centre('02', 'L01281902', 'Unidad Tramitadora')
+    ->centre('03', 'L01281903', 'Oficina Gestora');
+
+// Use in invoice
+$invoice = Invoice::create('2024-001')
+    ->seller($seller)
+    ->buyer($buyer);
+```
+
+## International Parties
+
+For parties outside Spain:
+
+```php
+$foreignBuyer = Party::company(
+    taxNumber: 'FR12345678901',  // French SIRET
+    name: 'Société Française SARL'
+)
+->address(
+    street: '10 Avenue des Champs-Élysées',
+    postalCode: '75008',
+    town: 'Paris',
+    province: 'Île-de-France',
+    countryCode: 'FRA'  // Important: Set correct country
+)
+->email('[email protected]');
+```
+
+<Tip>
+When dealing with international parties, always set the correct `countryCode` to ensure proper VAT treatment and validation.
+</Tip>
+
+## Method Reference
+
+### Static Constructors
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `company()` | `string $taxNumber, string $name` | `Party` | Create legal entity |
+| `person()` | `string $taxNumber, string $name, string $firstSurname, ?string $lastSurname` | `Party` | Create individual |
+
+### Configuration Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `address()` | `string $street, string $postalCode, string $town, string $province, string $countryCode = 'ESP'` | `self` | Set postal address |
+| `tradeName()` | `string $tradeName` | `self` | Set commercial name |
+| `email()` | `string $email` | `self` | Set email address |
+| `phone()` | `string $phone` | `self` | Set phone number |
+| `fax()` | `string $fax` | `self` | Set fax number |
+| `website()` | `string $website` | `self` | Set website URL |
+| `contactPeople()` | `string $value` | `self` | Set contact person info |
+| `cnoCnae()` | `string $value` | `self` | Set economic activity code |
+| `ineTownCode()` | `string $value` | `self` | Set INE town code |
+| `centre()` | `string $role, string $code, ?string $name` | `self` | Add administrative center |
+| `merchantRegister()` | `?string $book, ?string $register, ?string $sheet, ?string $folio, ?string $section, ?string $volume` | `self` | Set registry data |
+
+## Source Reference
+
+The complete Party class implementation:
+- `src/Party.php:9-132` - Main Party class
+- `src/Entities/Address.php` - Address entity

@@ -1,0 +1,196 @@
+---
+title: Schema
+description: FacturaE XML schema versions
+---
+
+The `Schema` enum represents the FacturaE XML schema versions supported by this library. Each version corresponds to an official Spanish invoice format specification.
+
+## Enum Cases
+
+| Case | Version | Status | Release Date |
+|------|---------|--------|-------------|
+| `V3_2` | 3.2 | Supported | 2009 |
+| `V3_2_1` | 3.2.1 | Supported | 2015 |
+| `V3_2_2` | 3.2.2 | Recommended | 2017 |
+
+## Methods
+
+### xmlNamespace()
+
+Returns the XML namespace URI for the schema version:
+
+```php
+public function xmlNamespace(): string
+```
+
+**Returns:**
+- `V3_2`: `http://www.facturae.gob.es/formato/Versiones/Facturaev3_2.xml`
+- `V3_2_1`: `http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_1.xml`
+- `V3_2_2`: `http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml`
+
+### schemaUrl()
+
+Returns the XSD schema definition URL:
+
+```php
+public function schemaUrl(): string
+```
+
+Returns the same URLs as `xmlNamespace()` for validation purposes.
+
+## Default Version
+
+The library defaults to **FacturaE 3.2.2**, which is the most recent and recommended version. Version 3.2.2 includes all features from previous versions plus additional improvements.
+
+## Usage Examples
+
+### Using Default Version (3.2.2)
+
+```php
+use PhpFacturae\Invoice;
+
+// Uses Schema::V3_2_2 by default
+$invoice = new Invoice();
+$xml = $invoice->export();
+```
+
+### Explicitly Setting Schema Version
+
+```php
+use PhpFacturae\{Invoice, Enums\Schema};
+
+// Use specific version
+$invoice = new Invoice();
+$invoice->setSchema(Schema::V3_2_1);
+$xml = $invoice->export();
+```
+
+### Getting Schema Information
+
+```php
+use PhpFacturae\Enums\Schema;
+
+$schema = Schema::V3_2_2;
+
+echo $schema->value; // "3.2.2"
+echo $schema->xmlNamespace(); // "http://www.facturae.gob.es/..."
+echo $schema->schemaUrl(); // "http://www.facturae.gob.es/..."
+```
+
+### Checking Current Schema
+
+```php
+use PhpFacturae\{Invoice, Enums\Schema};
+
+$invoice = new Invoice();
+
+if ($invoice->getSchema() === Schema::V3_2_2) {
+    echo 'Using latest schema version';
+}
+```
+
+## Version Differences
+
+### FacturaE 3.2 (2009)
+
+- Original electronic invoice format
+- Basic fields and structure
+- Standard tax codes
+- Digital signature support
+
+**Use when:** Legacy system compatibility required
+
+### FacturaE 3.2.1 (2015)
+
+- Enhanced tax types
+- Additional correction reasons
+- Improved payment terms
+- Better international support
+
+**Use when:** Need features from 2015 but not 2017 updates
+
+### FacturaE 3.2.2 (2017) - Recommended
+
+- All tax types (29 codes including ISS)
+- Complete correction reasons (22 codes)
+- Extended payment methods
+- Special taxable events
+- Better support for simplified invoices
+- Additional validation rules
+
+**Use when:** Starting new projects (recommended)
+
+## When to Use Different Versions
+
+### Use V3_2_2 (Recommended)
+
+- New projects and implementations
+- Need latest tax types (ISS, IRNR, etc.)
+- Government contract invoicing
+- Maximum compliance and features
+
+### Use V3_2_1
+
+- Integration with systems requiring 3.2.1
+- Client specifically requests this version
+- Existing project using 3.2.1
+
+### Use V3_2
+
+- Legacy system integration
+- Very old software compatibility
+- Minimal feature requirements
+
+## XML Output Example
+
+The schema version affects the XML namespace:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<fe:Facturae xmlns:fe="http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml">
+  <!-- Invoice content -->
+</fe:Facturae>
+```
+
+## Validation
+
+Each schema version has its own XSD for validation:
+
+```php
+use PhpFacturae\{Invoice, Enums\Schema};
+
+$invoice = new Invoice();
+$invoice->setSchema(Schema::V3_2_2);
+
+// XML will validate against FacturaE 3.2.2 XSD
+$xml = $invoice->export();
+```
+
+## Compatibility
+
+- **Forward compatible**: V3_2 invoices can be processed by V3_2_2 validators
+- **Backward compatible**: New features in V3_2_2 may not validate in V3_2
+- **Best practice**: Use V3_2_2 for new invoices for maximum compatibility
+
+## Government Requirements
+
+Spanish government entities typically accept:
+
+- FacturaE 3.2 or later
+- Most prefer or require 3.2.2
+- Check specific agency requirements
+- FACe platform supports all versions
+
+## Notes
+
+- Always use the latest version (3.2.2) unless you have a specific reason not to
+- The schema version is included in the XML output
+- Version affects available features and validation rules
+- Older versions may lack newer tax types and correction reasons
+- Digital signature validation depends on schema version
+
+## See Also
+
+- [Invoice::setSchema()](/api/classes/invoice#setschema) - Set schema version
+- [Invoice::getSchema()](/api/classes/invoice#getschema) - Get current schema
+- [Invoice::export()](/api/classes/invoice#export) - Generate XML with schema

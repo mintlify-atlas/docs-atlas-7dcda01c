@@ -1,0 +1,169 @@
+---
+title: CorrectionReason
+description: Correction reason codes for corrective/credit invoices
+---
+
+The `CorrectionReason` enum represents all correction reasons supported by the FacturaE 3.2.2 XSD specification. These codes are used when issuing corrective or credit invoices to specify why the original invoice is being corrected.
+
+## Enum Cases
+
+The following table lists all 22 correction reasons available:
+
+| Case | Code | Description |
+|------|------|-------------|
+| `InvoiceNumber` | `01` | Invoice number correction |
+| `InvoiceSeries` | `02` | Invoice series correction |
+| `IssueDate` | `03` | Issue date correction |
+| `IssuerName` | `04` | Issuer name/business name correction |
+| `RecipientName` | `05` | Recipient name/business name correction |
+| `IssuerTaxId` | `06` | Issuer tax identification correction |
+| `RecipientTaxId` | `07` | Recipient tax identification correction |
+| `IssuerAddress` | `08` | Issuer address correction |
+| `RecipientAddress` | `09` | Recipient address correction |
+| `TransactionDetail` | `10` | Transaction detail/description correction |
+| `TaxRate` | `11` | Tax rate correction |
+| `TaxAmount` | `12` | Tax amount correction |
+| `TaxPeriod` | `13` | Tax period correction |
+| `InvoiceClass` | `14` | Invoice class/type correction |
+| `LegalLiterals` | `15` | Legal text/literals correction |
+| `TaxableBase` | `16` | Taxable base correction |
+| `OutputTaxCalculation` | `80` | Output tax calculation error |
+| `WithheldTaxCalculation` | `81` | Withheld tax calculation error |
+| `BaseModifiedReturns` | `82` | Base modified due to returns/refunds |
+| `BaseModifiedDiscounts` | `83` | Base modified due to discounts |
+| `BaseModifiedCourtOrder` | `84` | Base modified by court/administrative order |
+| `BaseModifiedInsolvency` | `85` | Base modified due to insolvency proceedings |
+
+## Methods
+
+### description()
+
+Returns the official Spanish description for each correction reason:
+
+```php
+public function description(): string
+```
+
+## Usage Examples
+
+### Correcting Invoice Amount
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::TaxableBase);
+$creditNote->setCorrectionMethod(CorrectionMethod::Differences);
+$creditNote->addCorrectedInvoice(
+    series: 'A',
+    number: '12345',
+    issueDate: new DateTime('2024-01-15')
+);
+```
+
+### Correcting Tax Rate Error
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::TaxRate);
+$creditNote->setCorrectionMethod(CorrectionMethod::FullReplacement);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+
+// Get the Spanish description
+echo CorrectionReason::TaxRate->description();
+// Output: "Porcentaje impositivo a aplicar"
+```
+
+### Correcting Customer Information
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::RecipientTaxId);
+$creditNote->setCorrectionMethod(CorrectionMethod::FullReplacement);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+```
+
+### Product Return/Refund
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::BaseModifiedReturns);
+$creditNote->setCorrectionMethod(CorrectionMethod::Differences);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+```
+
+### Volume Discount Applied
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::BaseModifiedDiscounts);
+$creditNote->setCorrectionMethod(CorrectionMethod::VolumeDiscount);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+```
+
+## When to Use Each Reason
+
+### Administrative Corrections (01-16)
+
+Use these codes when correcting clerical or administrative errors:
+
+- **InvoiceNumber/InvoiceSeries** - Wrong invoice numbering
+- **IssueDate** - Incorrect date
+- **IssuerName/RecipientName** - Misspelled names
+- **IssuerTaxId/RecipientTaxId** - Wrong tax IDs (NIF/CIF)
+- **IssuerAddress/RecipientAddress** - Wrong addresses
+- **TransactionDetail** - Incorrect descriptions
+- **InvoiceClass** - Wrong invoice type
+- **LegalLiterals** - Missing or incorrect legal text
+
+### Tax Corrections (11-12, 16, 80-81)
+
+Use these codes for tax-related errors:
+
+- **TaxRate** - Applied wrong tax percentage
+- **TaxAmount** - Tax calculation error
+- **TaxableBase** - Incorrect base amount
+- **OutputTaxCalculation** - Error in VAT calculation
+- **WithheldTaxCalculation** - Error in withholding calculation
+
+### Base Modifications (82-85)
+
+Use these codes when the invoice amount changes due to external circumstances:
+
+- **BaseModifiedReturns** - Customer returned goods
+- **BaseModifiedDiscounts** - Volume or prompt payment discount
+- **BaseModifiedCourtOrder** - Court or tax authority decision
+- **BaseModifiedInsolvency** - Customer insolvency proceedings
+
+## Notes
+
+- All corrective invoices must specify a correction reason
+- The reason code appears in the XML output's `ReasonCode` field
+- Multiple corrected invoices can reference the same reason
+- The `description()` method returns official Spanish text for compliance
+- Correction reasons 80-85 typically require supporting documentation
+
+## See Also
+
+- [CorrectionMethod](/api/enums/correction-method) - How to apply the correction
+- [Invoice::setIsCorrective()](/api/classes/invoice#setiscorrective) - Mark invoice as corrective
+- [Invoice::setCorrectionReason()](/api/classes/invoice#setcorrectionreason) - Set correction reason
+- [Invoice::addCorrectedInvoice()](/api/classes/invoice#addcorrectedinvoice) - Reference original invoice

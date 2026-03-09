@@ -1,0 +1,374 @@
+---
+title: Payments
+description: Configure payment terms, methods, and installments for FacturaE invoices
+---
+
+## Overview
+
+Every FacturaE invoice should specify payment terms. PHP FacturaE provides shortcut methods for common payment methods and support for split payments (installments).
+
+## Payment Methods
+
+The library includes shortcuts for the four most common payment methods:
+
+1. Bank transfer
+2. Cash
+3. Card
+4. Direct debit
+
+### Bank Transfer
+
+The most common B2B payment method:
+
+```php
+$invoice->transferPayment(
+    iban: 'ES12 3456 7890 1234 5678 9012',
+    dueDate: '2024-04-09',  // Optional
+    amount: null            // Optional (defaults to invoice total)
+);
+```
+
+<Info>
+IBAN formatting is automatic - spaces are stripped internally. You can provide IBANs with or without spaces.
+</Info>
+
+### Cash Payment
+
+```php
+$invoice->cashPayment(
+    dueDate: null,  // Immediate payment
+    amount: null
+);
+```
+
+### Card Payment
+
+```php
+$invoice->cardPayment(
+    dueDate: '2024-03-09',
+    amount: null
+);
+```
+
+### Direct Debit
+
+For SEPA direct debit mandates:
+
+```php
+$invoice->directDebitPayment(
+    iban: 'ES98 7654 3210 9876 5432 1098',
+    dueDate: '2024-04-09',
+    amount: null
+);
+```
+
+<Note>
+If `amount` is null, the payment defaults to the invoice total after taxes. This is the most common scenario for single payments.
+</Note>
+
+## Payment Due Dates
+
+Due dates can be specified as strings or DateTimeImmutable:
+
+```php
+// String format
+$invoice->transferPayment('ES12...', dueDate: '2024-04-09');
+
+// DateTimeImmutable
+$invoice->transferPayment('ES12...', dueDate: new DateTimeImmutable('+30 days'));
+
+// Immediate payment (no due date)
+$invoice->cashPayment();
+```
+
+## Split Payments (Installments)
+
+For invoices paid in multiple installments:
+
+```php
+$invoice->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2024-04-09',
+    intervalDays: 30,
+    iban: 'ES12 3456 7890 1234 5678 9012'
+);
+```
+
+This creates three payment entries:
+- Payment 1: Due 2024-04-09 (33.33% of total)
+- Payment 2: Due 2024-05-09 (33.33% of total)
+- Payment 3: Due 2024-06-08 (33.33% of total)
+
+<Steps>
+  <Step title="Method">
+    Choose from the PaymentMethod enum:
+    
+    ```php
+    use PhpFacturae\Enums\PaymentMethod;
+    
+    PaymentMethod::Transfer
+    PaymentMethod::DirectDebit
+    PaymentMethod::Card
+    PaymentMethod::Cash
+    // ... and 15 more options
+    ```
+  </Step>
+  
+  <Step title="Installments">
+    Number of equal payments:
+    
+    ```php
+    installments: 3  // Split into 3 payments
+    installments: 6  // Split into 6 payments
+    ```
+  </Step>
+  
+  <Step title="First Due Date">
+    When the first installment is due:
+    
+    ```php
+    firstDueDate: '2024-04-09'
+    ```
+  </Step>
+  
+  <Step title="Interval">
+    Days between installments (default: 30):
+    
+    ```php
+    intervalDays: 30   // Monthly
+    intervalDays: 15   // Bi-weekly
+    intervalDays: 90   // Quarterly
+    ```
+  </Step>
+</Steps>
+
+### Custom Installment Amounts
+
+For unequal installments, add payments manually:
+
+```php
+use PhpFacturae\Entities\Payment;
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->payment(new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new DateTimeImmutable('2024-04-09'),
+    amount: 1000.00,
+    iban: 'ES12 3456 7890 1234 5678 9012'
+))
+->payment(new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new DateTimeImmutable('2024-05-09'),
+    amount: 1500.00,
+    iban: 'ES12 3456 7890 1234 5678 9012'
+))
+->payment(new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new DateTimeImmutable('2024-06-09'),
+    amount: 500.00,
+    iban: 'ES12 3456 7890 1234 5678 9012'
+));
+```
+
+<Warning>
+When manually specifying payment amounts, ensure they sum to the invoice total. Otherwise, validation will fail when exporting.
+</Warning>
+
+## PaymentMethod Enum (19 Methods)
+
+The complete list of supported payment methods:
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+PaymentMethod::Cash                   // '01' - Cash payment
+PaymentMethod::DirectDebit            // '02' - SEPA direct debit
+PaymentMethod::Receipt                // '03' - Receipt
+PaymentMethod::Transfer               // '04' - Bank transfer
+PaymentMethod::AcceptedBillOfExchange // '05' - Accepted bill
+PaymentMethod::DocumentaryCredit      // '06' - Documentary credit
+PaymentMethod::ContractAward          // '07' - Contract award
+PaymentMethod::BillOfExchange         // '08' - Bill of exchange
+PaymentMethod::TransferablePromissory // '09' - Transferable note
+PaymentMethod::PromissoryNote         // '10' - Promissory note
+PaymentMethod::Cheque                 // '11' - Cheque
+PaymentMethod::Reimbursement          // '12' - Reimbursement
+PaymentMethod::Special                // '13' - Special
+PaymentMethod::Setoff                 // '14' - Compensation
+PaymentMethod::Postgiro               // '15' - Postgiro
+PaymentMethod::CertifiedCheque        // '16' - Certified cheque
+PaymentMethod::BankersDraft           // '17' - Banker's draft
+PaymentMethod::CashOnDelivery         // '18' - Cash on delivery
+PaymentMethod::Card                   // '19' - Payment card
+```
+
+<Info>
+Most modern B2B invoices use:
+- `Transfer` (04) - Default for most transactions
+- `DirectDebit` (02) - Recurring payments
+- `Card` (19) - Immediate payments
+- `Cash` (01) - Retail/small transactions
+</Info>
+
+## IBAN Formatting
+
+IBANs are automatically normalized:
+
+```php
+// All these are equivalent:
+$invoice->transferPayment('ES1234567890123456789012');
+$invoice->transferPayment('ES12 3456 7890 1234 5678 9012');
+$invoice->transferPayment('ES12-3456-7890-1234-5678-9012');
+
+// All stored internally as: 'ES1234567890123456789012'
+```
+
+<Tip>
+For readability in your code, use the spaced format (ES12 3456 7890 1234 5678 9012). The library handles normalization automatically.
+</Tip>
+
+## Multiple Payment Methods
+
+You can combine different payment methods on one invoice:
+
+```php
+$invoice->cashPayment(amount: 500)  // Partial cash
+        ->transferPayment(
+            iban: 'ES12 3456 7890 1234 5678 9012',
+            dueDate: '2024-04-09',
+            amount: null  // Remaining balance via transfer
+        );
+```
+
+## Complete Examples
+
+### Standard 30-Day Payment Terms
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+$invoice = Invoice::create('2024-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Consulting services', price: 2000, vat: 21)
+    ->transferPayment(
+        iban: 'ES12 3456 7890 1234 5678 9012',
+        dueDate: '+30 days'
+    );
+```
+
+### Immediate Cash Payment
+
+```php
+$invoice = Invoice::create('2024-002')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Retail product', price: 49.99, vat: 21)
+    ->cashPayment();  // Paid immediately, no due date
+```
+
+### Quarterly Installments
+
+```php
+$invoice = Invoice::create('2024-003')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Annual service contract', price: 12000, vat: 21)
+    ->splitPayments(
+        method: PaymentMethod::DirectDebit,
+        installments: 4,
+        firstDueDate: '2024-04-01',
+        intervalDays: 90,  // Every 3 months
+        iban: 'ES12 3456 7890 1234 5678 9012'
+    );
+
+// Creates 4 payments:
+// - 2024-04-01: €3,630 (3,000 + 21% VAT)
+// - 2024-06-30: €3,630
+// - 2024-09-28: €3,630  
+// - 2024-12-27: €3,630
+```
+
+### Mixed Payment (Down Payment + Balance)
+
+```php
+$invoice = Invoice::create('2024-004')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Large equipment', price: 50000, vat: 21)
+    ->cashPayment(amount: 15000)  // 30% down payment
+    ->transferPayment(
+        iban: 'ES12 3456 7890 1234 5678 9012',
+        dueDate: '+30 days',
+        amount: 45500  // Remaining balance (50,000 + 21% VAT - 15,000)
+    );
+```
+
+## Payment Validation
+
+The library validates payments during export:
+
+- **Total mismatch**: Payment amounts must sum to invoice total (unless only one payment with null amount)
+- **Missing IBAN**: Transfer and DirectDebit require IBAN
+- **Invalid dates**: Due dates cannot be in the past (warning, not error)
+
+<Warning>
+If you specify multiple payments with explicit amounts, they must sum exactly to the invoice total including taxes. Use `null` for the last payment amount to auto-calculate the remainder.
+</Warning>
+
+## Advanced Payment Configuration
+
+For complex scenarios requiring BIC codes or additional metadata:
+
+```php
+use PhpFacturae\Entities\Payment;
+use PhpFacturae\Enums\PaymentMethod;
+
+$payment = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new DateTimeImmutable('2024-04-09'),
+    amount: 2420.00,
+    iban: 'ES1234567890123456789012',
+    bic: 'BBVAESMM',  // Optional BIC/SWIFT code
+    installmentIndex: null,
+    totalInstallments: null
+);
+
+$invoice->payment($payment);
+```
+
+## Method Reference
+
+### Shortcut Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `transferPayment()` | `string $iban, ?string $dueDate, ?float $amount` | `self` | Bank transfer payment |
+| `cashPayment()` | `?string $dueDate, ?float $amount` | `self` | Cash payment |
+| `cardPayment()` | `?string $dueDate, ?float $amount` | `self` | Card payment |
+| `directDebitPayment()` | `string $iban, ?string $dueDate, ?float $amount` | `self` | Direct debit payment |
+| `splitPayments()` | `PaymentMethod $method, int $installments, string $firstDueDate, int $intervalDays, ?string $iban` | `self` | Split into installments |
+| `payment()` | `Payment $payment` | `self` | Add custom Payment object |
+
+### Payment Entity Constructor
+
+```php
+new Payment(
+    method: PaymentMethod,           // Required: Payment method
+    dueDate: ?DateTimeImmutable,     // Optional: When payment is due
+    amount: ?float,                  // Optional: Amount (null = auto)
+    iban: ?string,                   // Optional: Bank account
+    bic: ?string,                    // Optional: BIC/SWIFT code
+    installmentIndex: ?int,          // Optional: Installment number
+    totalInstallments: ?int          // Optional: Total installments
+)
+```
+
+## Source Reference
+
+Payment implementation:
+- `src/Invoice.php:256-315` - Payment methods
+- `src/Entities/Payment.php:10-28` - Payment entity
+- `src/Enums/PaymentMethod.php:12-33` - PaymentMethod enum (19 types)

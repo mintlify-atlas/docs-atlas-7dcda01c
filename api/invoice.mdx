@@ -1,0 +1,764 @@
+---
+title: Invoice
+description: Main class for creating and managing FacturaE invoices
+---
+
+The `Invoice` class is the core component of PHP FacturaE. It provides a fluent interface for building electronic invoices compliant with the Spanish FacturaE format.
+
+## Creating an Invoice
+
+### create()
+
+Create a new invoice instance.
+
+<ParamField path="number" type="string" required>
+  The invoice number
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns a new Invoice instance
+</ResponseField>
+
+```php
+$invoice = Invoice::create('INV-2024-001');
+```
+
+## Core Properties
+
+### series()
+
+Set the invoice series.
+
+<ParamField path="series" type="string" required>
+  The invoice series identifier
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->series('A');
+```
+
+### date()
+
+Set the invoice issue date.
+
+<ParamField path="date" type="string|DateTimeImmutable" required>
+  The issue date. Can be a date string (parsed by DateTimeImmutable) or a DateTimeImmutable object
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->date('2024-01-15');
+$invoice->date(new DateTimeImmutable('2024-01-15'));
+```
+
+### operationDate()
+
+Set the operation date (when the transaction occurred).
+
+<ParamField path="date" type="string|DateTimeImmutable" required>
+  The operation date
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->operationDate('2024-01-15');
+```
+
+### billingPeriod()
+
+Set the billing period for the invoice.
+
+<ParamField path="from" type="string|DateTimeImmutable" required>
+  Start date of the billing period
+</ParamField>
+
+<ParamField path="to" type="string|DateTimeImmutable" required>
+  End date of the billing period
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->billingPeriod('2024-01-01', '2024-01-31');
+```
+
+### schema()
+
+Set the FacturaE schema version.
+
+<ParamField path="schema" type="Schema" required>
+  The schema version enum value
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Enums\Schema;
+
+$invoice->schema(Schema::V3_2_2);
+```
+
+### type()
+
+Set the invoice type.
+
+<ParamField path="type" type="InvoiceType" required>
+  The invoice type enum value
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Enums\InvoiceType;
+
+$invoice->type(InvoiceType::Full);
+```
+
+### currency()
+
+Set the invoice currency.
+
+<ParamField path="currency" type="string" required>
+  ISO 4217 currency code (default: 'EUR')
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->currency('EUR');
+```
+
+### description()
+
+Set the invoice description.
+
+<ParamField path="description" type="string" required>
+  Invoice description
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->description('Servicios de consultoría enero 2024');
+```
+
+## Parties
+
+### seller()
+
+Set the seller (supplier) party.
+
+<ParamField path="seller" type="Party" required>
+  The seller Party instance
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$seller = Party::company('B12345678', 'Mi Empresa SL')
+    ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid');
+
+$invoice->seller($seller);
+```
+
+### buyer()
+
+Set the buyer (customer) party.
+
+<ParamField path="buyer" type="Party" required>
+  The buyer Party instance
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$buyer = Party::company('B87654321', 'Cliente SA')
+    ->address('Gran Vía 10', '28013', 'Madrid', 'Madrid');
+
+$invoice->buyer($buyer);
+```
+
+## Invoice Lines
+
+### line()
+
+Add a standard invoice line with Spanish tax shortcuts.
+
+<ParamField path="description" type="string" required>
+  Line item description
+</ParamField>
+
+<ParamField path="price" type="float" required>
+  Unit price (without taxes)
+</ParamField>
+
+<ParamField path="quantity" type="float" default="1">
+  Quantity
+</ParamField>
+
+<ParamField path="vat" type="float|null">
+  VAT (IVA) rate percentage
+</ParamField>
+
+<ParamField path="irpf" type="float|null">
+  Income tax withholding (IRPF) rate percentage
+</ParamField>
+
+<ParamField path="igic" type="float|null">
+  Canary Islands tax (IGIC) rate percentage
+</ParamField>
+
+<ParamField path="surcharge" type="float|null">
+  Equivalence surcharge rate percentage
+</ParamField>
+
+<ParamField path="ie" type="float|null">
+  Special tax (IE) rate percentage
+</ParamField>
+
+<ParamField path="ieWithheld" type="bool" default="false">
+  Whether special tax is withheld
+</ParamField>
+
+<ParamField path="discount" type="float|null">
+  Line discount amount
+</ParamField>
+
+<ParamField path="articleCode" type="string|null">
+  Product/article code
+</ParamField>
+
+<ParamField path="detailedDescription" type="string|null">
+  Additional detailed description
+</ParamField>
+
+<ParamField path="unit" type="UnitOfMeasure|null">
+  Unit of measure enum value
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+// Standard line with VAT
+$invoice->line('Lámpara LED', quantity: 3, price: 20.14, vat: 21);
+
+// Service with VAT and IRPF withholding
+$invoice->line('Consultoría', price: 500, vat: 21, irpf: 15);
+
+// Canary Islands product with IGIC
+$invoice->line('Producto Canarias', price: 100, igic: 7);
+
+// Jewelry with equivalence surcharge
+$invoice->line('Joyería', price: 200, vat: 21, surcharge: 5.2);
+
+// Electricity with custom unit
+$invoice->line('Electricidad', price: 80, vat: 21, unit: UnitOfMeasure::KWh);
+```
+
+### exemptLine()
+
+Add a tax-exempt line with exemption reason.
+
+<ParamField path="description" type="string" required>
+  Line item description
+</ParamField>
+
+<ParamField path="price" type="float" required>
+  Unit price
+</ParamField>
+
+<ParamField path="quantity" type="float" default="1">
+  Quantity
+</ParamField>
+
+<ParamField path="reason" type="string|null">
+  Tax exemption reason (e.g., legal article reference)
+</ParamField>
+
+<ParamField path="discount" type="float|null">
+  Line discount amount
+</ParamField>
+
+<ParamField path="articleCode" type="string|null">
+  Product/article code
+</ParamField>
+
+<ParamField path="unit" type="UnitOfMeasure|null">
+  Unit of measure enum value
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->exemptLine(
+    'Formación FUNDAE',
+    price: 2000,
+    reason: 'Exenta art. 20 LIVA'
+);
+```
+
+### customLine()
+
+Add a line with custom tax configuration.
+
+<ParamField path="description" type="string" required>
+  Line item description
+</ParamField>
+
+<ParamField path="price" type="float" required>
+  Unit price
+</ParamField>
+
+<ParamField path="taxes" type="TaxBreakdown[]" required>
+  Array of TaxBreakdown objects
+</ParamField>
+
+<ParamField path="quantity" type="float" default="1">
+  Quantity
+</ParamField>
+
+<ParamField path="discount" type="float|null">
+  Line discount amount
+</ParamField>
+
+<ParamField path="articleCode" type="string|null">
+  Product/article code
+</ParamField>
+
+<ParamField path="unit" type="UnitOfMeasure|null">
+  Unit of measure enum value
+</ParamField>
+
+<ParamField path="specialTaxableEvent" type="SpecialTaxableEvent|null">
+  Special taxable event enum value
+</ParamField>
+
+<ParamField path="specialTaxableEventReason" type="string|null">
+  Reason for special taxable event
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$taxes = [
+    new TaxBreakdown(Tax::IVA, 21),
+    new TaxBreakdown(Tax::IRPF, 15),
+];
+
+$invoice->customLine('Servicio profesional', price: 1000, taxes: $taxes);
+```
+
+## Payments
+
+### payment()
+
+Add a custom payment object.
+
+<ParamField path="payment" type="Payment" required>
+  Payment entity instance
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Entities\Payment;
+use PhpFacturae\Enums\PaymentMethod;
+
+$payment = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new DateTimeImmutable('2024-02-15'),
+    iban: 'ES7921000813610123456789'
+);
+
+$invoice->payment($payment);
+```
+
+### transferPayment()
+
+Add a bank transfer payment.
+
+<ParamField path="iban" type="string" required>
+  Bank account IBAN
+</ParamField>
+
+<ParamField path="dueDate" type="string|null">
+  Payment due date
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Payment amount (null for full invoice amount)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->transferPayment(
+    iban: 'ES7921000813610123456789',
+    dueDate: '2024-02-15'
+);
+```
+
+### cashPayment()
+
+Add a cash payment.
+
+<ParamField path="dueDate" type="string|null">
+  Payment due date
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Payment amount (null for full invoice amount)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->cashPayment();
+```
+
+### cardPayment()
+
+Add a card payment.
+
+<ParamField path="dueDate" type="string|null">
+  Payment due date
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Payment amount (null for full invoice amount)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->cardPayment();
+```
+
+### directDebitPayment()
+
+Add a direct debit payment.
+
+<ParamField path="iban" type="string" required>
+  Bank account IBAN for direct debit
+</ParamField>
+
+<ParamField path="dueDate" type="string|null">
+  Payment due date
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Payment amount (null for full invoice amount)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->directDebitPayment(
+    iban: 'ES7921000813610123456789',
+    dueDate: '2024-02-15'
+);
+```
+
+### splitPayments()
+
+Split payment into multiple installments.
+
+<ParamField path="method" type="PaymentMethod" required>
+  Payment method enum value
+</ParamField>
+
+<ParamField path="installments" type="int" required>
+  Number of installments
+</ParamField>
+
+<ParamField path="firstDueDate" type="string" required>
+  Due date for the first installment
+</ParamField>
+
+<ParamField path="intervalDays" type="int" default="30">
+  Days between each installment
+</ParamField>
+
+<ParamField path="iban" type="string|null">
+  Bank account IBAN (required for Transfer and DirectDebit)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2024-02-15',
+    intervalDays: 30,
+    iban: 'ES7921000813610123456789'
+);
+```
+
+## Corrective Invoices
+
+### corrects()
+
+Mark this invoice as a correction of another invoice.
+
+<ParamField path="invoiceNumber" type="string" required>
+  Number of the invoice being corrected
+</ParamField>
+
+<ParamField path="reason" type="CorrectionReason" default="CorrectionReason::TransactionDetail">
+  Reason for the correction
+</ParamField>
+
+<ParamField path="method" type="CorrectionMethod" default="CorrectionMethod::FullReplacement">
+  Correction method
+</ParamField>
+
+<ParamField path="series" type="string|null">
+  Series of the invoice being corrected
+</ParamField>
+
+<ParamField path="periodStart" type="string|DateTimeImmutable|null">
+  Start of correction period
+</ParamField>
+
+<ParamField path="periodEnd" type="string|DateTimeImmutable|null">
+  End of correction period
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$invoice->corrects(
+    invoiceNumber: 'INV-2024-001',
+    reason: CorrectionReason::TransactionDetail,
+    method: CorrectionMethod::FullReplacement
+);
+```
+
+### legalLiteral()
+
+Add a legal literal text to the invoice.
+
+<ParamField path="literal" type="string" required>
+  Legal text to include
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->legalLiteral('Factura acogida al régimen especial de criterio de caja');
+```
+
+## Discounts & Charges
+
+### generalDiscount()
+
+Add a general discount at invoice level.
+
+<ParamField path="reason" type="string" required>
+  Reason for the discount
+</ParamField>
+
+<ParamField path="rate" type="float|null">
+  Discount rate percentage
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Fixed discount amount
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+// Fixed amount discount
+$invoice->generalDiscount('Descuento cliente VIP', amount: 50.00);
+
+// Percentage discount
+$invoice->generalDiscount('10% pronto pago', rate: 10);
+```
+
+### generalCharge()
+
+Add a general charge at invoice level.
+
+<ParamField path="reason" type="string" required>
+  Reason for the charge
+</ParamField>
+
+<ParamField path="rate" type="float|null">
+  Charge rate percentage
+</ParamField>
+
+<ParamField path="amount" type="float|null">
+  Fixed charge amount
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->generalCharge('Portes', amount: 15.00);
+```
+
+## Attachments
+
+### attach()
+
+Attach a file to the invoice.
+
+<ParamField path="attachment" type="Attachment" required>
+  Attachment entity instance
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+use PhpFacturae\Entities\Attachment;
+
+$attachment = Attachment::fromFile('/path/to/contract.pdf', 'Contrato firmado');
+$invoice->attach($attachment);
+```
+
+### attachFile()
+
+Attach a file directly from a file path.
+
+<ParamField path="path" type="string" required>
+  Path to the file
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Description of the attachment
+</ParamField>
+
+<ParamField path="mimeType" type="string|null">
+  MIME type (auto-detected if null)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->attachFile('/path/to/contract.pdf', 'Contrato firmado');
+```
+
+## Signing
+
+### sign()
+
+Set the signer for the invoice.
+
+<ParamField path="signer" type="InvoiceSigner" required>
+  Signer implementation (e.g., Pkcs12Signer)
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+```php
+$invoice->sign(Signer::pfx('cert.pfx', 'password'));
+```
+
+## Output
+
+### toXml()
+
+Generate the FacturaE XML string.
+
+<ResponseField name="return" type="string">
+  XML string of the invoice
+</ResponseField>
+
+<ResponseField name="throws" type="InvoiceValidationException">
+  If the invoice fails validation
+</ResponseField>
+
+```php
+try {
+    $xml = $invoice->toXml();
+    echo $xml;
+} catch (InvoiceValidationException $e) {
+    print_r($e->getErrors());
+}
+```
+
+### export()
+
+Export the invoice to an XML file.
+
+<ParamField path="path" type="string" required>
+  File path where the XML will be saved
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Returns self for method chaining
+</ResponseField>
+
+<ResponseField name="throws" type="InvoiceValidationException">
+  If the invoice fails validation
+</ResponseField>
+
+```php
+$invoice->export('/path/to/invoice.xml');
+```

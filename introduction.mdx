@@ -1,0 +1,124 @@
+---
+title: Introduction
+description: A modern PHP library for generating, validating, and signing FacturaE electronic invoices
+---
+
+# Introduction to PHP FacturaE
+
+PHP FacturaE is a modern, type-safe library for generating, validating, and signing electronic invoices in the [FacturaE format](http://www.facturae.gob.es/) — the official standard for e-invoicing in Spain.
+
+## What is FacturaE?
+
+FacturaE is the XML-based electronic invoice format required by Spanish public administration (AAPP) and widely adopted in the private sector. It's managed by the Spanish Tax Agency (AEAT) and ensures fiscal compliance and interoperability.
+
+## Why PHP FacturaE?
+
+PHP FacturaE provides a **fluent, type-safe API** that makes creating compliant invoices intuitive and error-free:
+
+```php
+Invoice::create('FAC-001')
+    ->series('A')
+    ->date('2025-03-01')
+    ->seller(Party::company('B12345678', 'Mi Empresa S.L.')
+        ->address('C/ Mayor 10', '28013', 'Madrid', 'Madrid'))
+    ->buyer(Party::person('12345678Z', 'Laura', 'Gómez', 'Ruiz')
+        ->address('C/ Sol 3', '28012', 'Madrid', 'Madrid'))
+    ->line('Diseño logotipo', price: 450.00, vat: 21)
+    ->transferPayment(iban: 'ES91 2100 0418 4502 0005 1332', dueDate: '2025-03-31')
+    ->export('factura.xml');
+```
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Fluent API with Enums" icon="code">
+    No associative arrays or loose constants — everything is strongly typed with PHP 8.2+ enums and readonly properties
+  </Card>
+  
+  <Card title="XAdES-EPES Digital Signatures" icon="signature">
+    Built-in support for PKCS#12 (.pfx) and PEM certificates with optional TSA timestamping
+  </Card>
+  
+  <Card title="XSD Validated" icon="shield-check">
+    Automatically validates against official FacturaE 3.2, 3.2.1, and 3.2.2 schemas
+  </Card>
+  
+  <Card title="Zero Dependencies" icon="feather">
+    Only requires standard PHP extensions: `ext-openssl`, `ext-dom` — no external packages
+  </Card>
+</CardGroup>
+
+### Comprehensive Tax Support
+
+- **29 tax types** including IVA, IRPF, IGIC, recargo de equivalencia, and special taxes
+- **19 payment methods** from transfer to card to direct debit
+- **36 units of measure** from pieces to kWh to hours
+- **22 correction reasons** for corrective invoices
+
+### Performance
+
+- **~0.2 ms** per simple invoice
+- **~22 ms** for 100 invoices
+- Efficient XML generation with minimal memory footprint
+
+## Use Cases
+
+<Tip>
+PHP FacturaE is ideal for:
+- **SaaS platforms** generating invoices for Spanish customers
+- **E-commerce** requiring FacturaE format for B2B sales
+- **Accounting software** needing FACe/FACeB2B integration
+- **Freelancers and agencies** invoicing public administration
+</Tip>
+
+## Standards Compliance
+
+PHP FacturaE generates XML that:
+- ✅ Validates against [official FacturaE XSD schemas](http://www.facturae.gob.es/formato/Paginas/version-3-2.aspx)
+- ✅ Passes [FACe validation](https://face.gob.es/es/facturas/validar-visualizar-factura)
+- ✅ Supports XAdES-EPES signatures with TSA timestamping
+- ✅ Compatible with public administration portals (FACe, FACeB2B)
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via Composer and configure your environment
+  </Card>
+  
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first invoice in under 5 minutes
+  </Card>
+</CardGroup>
+
+## Architecture
+
+The library is organized into focused namespaces:
+
+- **`Invoice`** — Main entry point with fluent API
+- **`Party`** — Seller/buyer entities (companies and individuals)
+- **`Entities/`** — Line items, payments, attachments, tax breakdowns, addresses
+- **`Enums/`** — Tax types, payment methods, invoice types, correction reasons
+- **`Exporter/`** — XML generation
+- **`Signer/`** — XAdES-EPES digital signatures
+- **`Validation/`** — Schema validation
+
+<Info>
+Every class uses **readonly properties** and **strict types** (PHP 8.2+) for maximum safety and IDE autocomplete support.
+</Info>
+
+## Next Steps
+
+<Steps>
+  <Step title="Install the library">
+    Follow the [installation guide](/installation) to add PHP FacturaE to your project
+  </Step>
+  
+  <Step title="Generate your first invoice">
+    Complete the [quickstart tutorial](/quickstart) to create a working invoice
+  </Step>
+  
+  <Step title="Explore advanced features">
+    Learn about corrective invoices, split payments, attachments, and digital signatures
+  </Step>
+</Steps>

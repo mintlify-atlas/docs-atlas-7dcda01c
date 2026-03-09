@@ -1,0 +1,224 @@
+---
+title: Address
+description: Represents a postal address with validation for Spanish postal codes
+---
+
+The `Address` entity represents a postal address for parties (buyers, sellers) in an invoice. It includes automatic validation for Spanish postal codes.
+
+## Constructor
+
+```php
+new Address(
+    string $street,
+    string $postalCode,
+    string $town,
+    string $province,
+    string $countryCode = 'ESP'
+)
+```
+
+### Parameters
+
+<ParamField path="street" type="string" required>
+  Street address including number and additional details
+</ParamField>
+
+<ParamField path="postalCode" type="string" required>
+  Postal code. For Spanish addresses (ESP), must be exactly 5 digits
+</ParamField>
+
+<ParamField path="town" type="string" required>
+  City or town name
+</ParamField>
+
+<ParamField path="province" type="string" required>
+  Province or state name
+</ParamField>
+
+<ParamField path="countryCode" type="string" default="'ESP'">
+  ISO 3166-1 alpha-3 country code (e.g., ESP, FRA, DEU, GBR)
+</ParamField>
+
+## Properties
+
+All constructor parameters are exposed as public readonly properties:
+
+<ResponseField name="street" type="string">
+  Street address
+</ResponseField>
+
+<ResponseField name="postalCode" type="string">
+  Postal code
+</ResponseField>
+
+<ResponseField name="town" type="string">
+  City or town name
+</ResponseField>
+
+<ResponseField name="province" type="string">
+  Province or state name
+</ResponseField>
+
+<ResponseField name="countryCode" type="string">
+  ISO 3166-1 alpha-3 country code
+</ResponseField>
+
+## Validation
+
+### Spanish Postal Codes
+
+When `countryCode` is `'ESP'`, the constructor validates that `postalCode` matches the pattern for Spanish postal codes (exactly 5 digits).
+
+If validation fails, an `InvalidPostalCodeException` is thrown.
+
+```php
+// Valid Spanish postal code
+$address = new Address(
+    street: 'Calle Mayor 1',
+    postalCode: '28013',  // Valid: 5 digits
+    town: 'Madrid',
+    province: 'Madrid'
+);
+
+// Invalid Spanish postal code
+try {
+    $address = new Address(
+        street: 'Calle Mayor 1',
+        postalCode: '2801',  // Invalid: only 4 digits
+        town: 'Madrid',
+        province: 'Madrid'
+    );
+} catch (\PhpFacturae\Exceptions\InvalidPostalCodeException $e) {
+    echo $e->getMessage(); // "Invalid postal code: 2801"
+}
+```
+
+### Non-Spanish Addresses
+
+For non-Spanish addresses, no postal code validation is performed:
+
+```php
+$address = new Address(
+    street: '10 Downing Street',
+    postalCode: 'SW1A 2AA',  // UK format accepted
+    town: 'London',
+    province: 'Greater London',
+    countryCode: 'GBR'
+);
+```
+
+## Country Codes
+
+Use ISO 3166-1 alpha-3 country codes:
+
+- `ESP` - Spain
+- `FRA` - France
+- `DEU` - Germany
+- `GBR` - United Kingdom
+- `ITA` - Italy
+- `PRT` - Portugal
+- `USA` - United States
+- And more...
+
+See the [full list of ISO 3166-1 alpha-3 codes](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3).
+
+## Example Usage
+
+### Spanish Address (Default)
+
+```php
+use PhpFacturae\Entities\Address;
+
+$address = new Address(
+    street: 'Calle Gran Vía 32, 5º B',
+    postalCode: '28013',
+    town: 'Madrid',
+    province: 'Madrid'
+    // countryCode defaults to 'ESP'
+);
+```
+
+### Spanish Address (Explicit)
+
+```php
+$address = new Address(
+    street: 'Passeig de Gràcia 123',
+    postalCode: '08008',
+    town: 'Barcelona',
+    province: 'Barcelona',
+    countryCode: 'ESP'
+);
+```
+
+### International Address
+
+```php
+$address = new Address(
+    street: '24 Rue de Rivoli',
+    postalCode: '75004',
+    town: 'Paris',
+    province: 'Île-de-France',
+    countryCode: 'FRA'
+);
+```
+
+### Using with Party Entities
+
+```php
+use PhpFacturae\Entities\Seller;
+use PhpFacturae\Enums\PersonType;
+
+$address = new Address(
+    street: 'Avenida de la Innovación 100',
+    postalCode: '41020',
+    town: 'Sevilla',
+    province: 'Sevilla'
+);
+
+$seller = new Seller(
+    taxId: 'B12345678',
+    name: 'Tech Solutions SL',
+    address: $address,
+    personType: PersonType::LegalEntity
+);
+```
+
+### Complete Invoice Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Entities\{Buyer, Seller, Address};
+use PhpFacturae\Enums\{InvoiceType, PersonType};
+
+$sellerAddress = new Address(
+    street: 'Calle Empresarial 50',
+    postalCode: '46001',
+    town: 'Valencia',
+    province: 'Valencia'
+);
+
+$buyerAddress = new Address(
+    street: 'Plaza del Cliente 10',
+    postalCode: '03001',
+    town: 'Alicante',
+    province: 'Alicante'
+);
+
+$invoice = new Invoice(
+    number: 'INV-2024-001',
+    issueDate: new \DateTimeImmutable('2024-01-15'),
+    seller: new Seller(
+        taxId: 'B12345678',
+        name: 'My Company SL',
+        address: $sellerAddress,
+        personType: PersonType::LegalEntity
+    ),
+    buyer: new Buyer(
+        taxId: 'B87654321',
+        name: 'Client Company SL',
+        address: $buyerAddress,
+        personType: PersonType::LegalEntity
+    ),
+    type: InvoiceType::Complete
+);
+```

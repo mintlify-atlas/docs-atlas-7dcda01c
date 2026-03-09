@@ -1,0 +1,429 @@
+---
+title: Lines and Taxes
+description: Add invoice lines with Spanish tax shortcuts (VAT, IRPF, IGIC) or custom tax configurations
+---
+
+## Overview
+
+Invoice lines represent individual goods or services sold. PHP FacturaE provides three methods for adding lines:
+
+1. **`line()`** - Spanish tax shortcuts (VAT, IRPF, IGIC, surcharge)
+2. **`exemptLine()`** - Tax-exempt items
+3. **`customLine()`** - Full control with custom tax breakdown
+
+## Basic Invoice Lines
+
+The `line()` method includes shortcuts for common Spanish taxes:
+
+```php
+// Simple product with VAT
+$invoice->line(
+    description: 'Laptop Computer',
+    quantity: 2,
+    price: 899.99,
+    vat: 21
+);
+
+// Service with quantity = 1 (default)
+$invoice->line(
+    description: 'Web Development',
+    price: 1500,
+    vat: 21
+);
+```
+
+### Method Signature
+
+```php
+public function line(
+    string         $description,
+    float          $price,
+    float          $quantity = 1,
+    ?float         $vat = null,
+    ?float         $irpf = null,
+    ?float         $igic = null,
+    ?float         $surcharge = null,
+    ?float         $ie = null,
+    bool           $ieWithheld = false,
+    ?float         $discount = null,
+    ?string        $articleCode = null,
+    ?string        $detailedDescription = null,
+    ?UnitOfMeasure $unit = null,
+): self
+```
+
+## Spanish Tax Shortcuts
+
+### VAT (IVA)
+
+Standard value-added tax:
+
+```php
+// Standard rate (21%)
+$invoice->line('Software License', price: 100, vat: 21);
+
+// Reduced rate (10%)
+$invoice->line('Book', price: 20, vat: 10);
+
+// Super-reduced rate (4%)
+$invoice->line('Essential Food', price: 15, vat: 4);
+```
+
+### IRPF (Income Tax Withholding)
+
+Professional services often require IRPF withholding:
+
+```php
+// Consulting with VAT and IRPF
+$invoice->line(
+    description: 'Legal Consulting',
+    price: 2000,
+    vat: 21,      // 21% VAT charged
+    irpf: 15      // 15% IRPF withheld
+);
+
+// Result:
+// Base: 2000.00 €
+// VAT (21%): +420.00 €
+// IRPF (15%): -300.00 €
+// Total: 2120.00 €
+```
+
+<Info>
+IRPF is a **withholding tax**. The amount is deducted from the invoice total, reducing what the buyer pays. The seller must declare this withheld amount in their tax filings.
+</Info>
+
+### IGIC (Canary Islands)
+
+For businesses operating in the Canary Islands, use IGIC instead of VAT:
+
+```php
+$invoice->line('Product shipped to Canary Islands', price: 100, igic: 7);
+```
+
+<Warning>
+Do not combine VAT and IGIC on the same line. Use one or the other based on the delivery location.
+</Warning>
+
+### Equivalence Surcharge (Recargo de Equivalencia)
+
+For retailers in the special equivalence regime:
+
+```php
+$invoice->line(
+    description: 'Retail Product',
+    price: 100,
+    vat: 21,
+    surcharge: 5.2  // 5.2% surcharge for 21% VAT rate
+);
+```
+
+<Info>
+**Surcharge rates** corresponding to VAT rates:
+- 21% VAT → 5.2% surcharge
+- 10% VAT → 1.4% surcharge
+- 4% VAT → 0.5% surcharge
+</Info>
+
+### Special Taxes (IE)
+
+Excise taxes on specific products:
+
+```php
+// Excise tax charged (default)
+$invoice->line('Alcohol', price: 50, vat: 21, ie: 10);
+
+// Excise tax withheld (less common)
+$invoice->line('Tobacco', price: 50, vat: 21, ie: 10, ieWithheld: true);
+```
+
+## Line Discounts
+
+Apply discounts to individual lines:
+
+```php
+$invoice->line(
+    description: 'Product with discount',
+    quantity: 10,
+    price: 100,
+    discount: 20,  // 20% discount
+    vat: 21
+);
+
+// Calculation:
+// Subtotal: 10 × 100 = 1000.00
+// Discount: -20% = -200.00
+// Base: 800.00
+// VAT (21%): +168.00
+// Line total: 968.00
+```
+
+<Note>
+Discounts are applied **before** taxes. Use `->generalDiscount()` on the invoice for discounts that apply to the entire invoice total.
+</Note>
+
+## Article Codes and Units
+
+### Product Codes
+
+Include SKU, EAN, or other identifiers:
+
+```php
+$invoice->line(
+    description: 'Laptop Model X',
+    price: 899,
+    articleCode: 'SKU-12345-B',
+    vat: 21
+);
+```
+
+### Units of Measure
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+// Energy billing
+$invoice->line(
+    description: 'Electricity consumption',
+    quantity: 150.5,
+    price: 0.15,
+    unit: UnitOfMeasure::KWh,
+    vat: 21
+);
+
+// Other common units
+$invoice->line('Fabric', quantity: 50, price: 12, unit: UnitOfMeasure::Meters, vat: 21);
+$invoice->line('Flour', quantity: 25, price: 2.5, unit: UnitOfMeasure::Kilograms, vat: 10);
+$invoice->line('Consultation Hours', quantity: 8, price: 85, unit: UnitOfMeasure::Hours, vat: 21);
+```
+
+### Detailed Descriptions
+
+Add extended descriptions for complex items:
+
+```php
+$invoice->line(
+    description: 'Custom Software Development',
+    price: 5000,
+    vat: 21,
+    detailedDescription: 'Development of custom CRM module including:\n'
+        . '- User management system\n'
+        . '- Advanced reporting dashboard\n'
+        . '- API integration with external services\n'
+        . '- 3 months of support and maintenance'
+);
+```
+
+## Tax-Exempt Lines
+
+For products or services exempt from taxation:
+
+```php
+$invoice->exemptLine(
+    description: 'Professional training course',
+    price: 2000,
+    quantity: 1,
+    reason: 'Exempt per Article 20 LIVA'
+);
+```
+
+<Info>
+Spanish tax law requires stating the **exemption reason** when issuing exempt invoices. Common exemptions include:
+- Article 20 LIVA - Education, healthcare, insurance
+- Intra-community supplies (EU exports)
+- Export of goods outside the EU
+</Info>
+
+## Custom Tax Configuration
+
+For complex tax scenarios, use `customLine()` with `TaxBreakdown` arrays:
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$invoice->customLine(
+    description: 'Complex service',
+    price: 1000,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, rate: 21),
+        new TaxBreakdown(Tax::IRPF, rate: 15),
+    ]
+);
+```
+
+### Tax Enum (29 Types)
+
+The `Tax` enum includes all Spanish tax types defined in FacturaE schema:
+
+```php
+Tax::IVA      // Value Added Tax
+Tax::IPSI     // Canary Islands Production Tax
+Tax::IGIC     // Canary Islands General Indirect Tax
+Tax::IRPF     // Personal Income Tax withholding
+Tax::IRNR     // Non-Resident Income Tax
+Tax::IE       // Special Tax (Excise)
+Tax::RA       // Agricultural equivalence surcharge
+Tax::ITPAJD   // Property Transfer Tax
+Tax::REIVA    // Equivalence surcharge (VAT)
+Tax::REIGIC   // Equivalence surcharge (IGIC)
+Tax::REIPSI   // Equivalence surcharge (IPSI)
+// ... and 18 more specialized taxes
+```
+
+See `src/Enums/Tax.php:12-42` for the complete list.
+
+### TaxBreakdown Constructor
+
+```php
+new TaxBreakdown(
+    type: Tax,           // Tax type from enum
+    rate: float,         // Percentage rate
+    isWithholding: ?bool = null,  // null = use default for tax type
+    surchargeRate: ?float = null  // Only for IVA with surcharge
+)
+```
+
+<Info>
+**Withholding defaults:**
+- `Tax::IRPF` and `Tax::IRNR` default to `isWithholding: true` (deducted)
+- All other taxes default to `isWithholding: false` (charged)
+
+Override with explicit `isWithholding` parameter if needed.
+</Info>
+
+## Multi-Tax Scenarios
+
+### Multiple Taxes on One Line
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$invoice->customLine(
+    description: 'Professional service with multiple taxes',
+    price: 1000,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, 21),        // +210 charged
+        new TaxBreakdown(Tax::IRPF, 15),       // -150 withheld
+        new TaxBreakdown(Tax::IE, 5),          // +50 charged
+    ]
+);
+
+// Calculation:
+// Base: 1000.00
+// IVA (21%): +210.00
+// IRPF (15%): -150.00
+// IE (5%): +50.00
+// Total: 1110.00
+```
+
+### Different Tax Rates Per Line
+
+```php
+$invoice->line('Standard rate product', price: 100, vat: 21)
+        ->line('Reduced rate product', price: 100, vat: 10)
+        ->line('Super-reduced product', price: 100, vat: 4)
+        ->line('Professional service', price: 500, vat: 21, irpf: 15)
+        ->exemptLine('Exempt service', price: 200, reason: 'Article 20 LIVA');
+
+// Invoice will group taxes correctly in the XML output
+```
+
+## Special Taxable Events
+
+For exempt lines with special circumstances:
+
+```php
+use PhpFacturae\Enums\SpecialTaxableEvent;
+
+$invoice->customLine(
+    description: 'Intra-community supply',
+    price: 5000,
+    taxes: [],
+    specialTaxableEvent: SpecialTaxableEvent::Exempt,
+    specialTaxableEventReason: 'Intra-EU supply - Article 25 LIVA'
+);
+```
+
+## Complete Examples
+
+### Standard B2B Invoice
+
+```php
+$invoice->line('Software development', price: 3000, vat: 21, irpf: 15)
+        ->line('Server hosting (monthly)', price: 150, vat: 21)
+        ->line('Domain registration', price: 25, vat: 21);
+```
+
+### Retail with Surcharge
+
+```php
+$invoice->line('Product A', quantity: 5, price: 20, vat: 21, surcharge: 5.2)
+        ->line('Product B', quantity: 3, price: 50, vat: 21, surcharge: 5.2)
+        ->line('Product C', quantity: 10, price: 8, vat: 10, surcharge: 1.4);
+```
+
+### Mixed Services
+
+```php
+$invoice->line('Consulting services', price: 2000, vat: 21, irpf: 15)
+        ->exemptLine('Educational training', price: 1500, 
+            reason: 'Exempt per Article 20.1.9 LIVA')
+        ->line('Technical materials', quantity: 3, price: 45.50, vat: 21);
+```
+
+## Method Reference
+
+### line() Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `description` | `string` | Yes | Line description |
+| `price` | `float` | Yes | Unit price (before discount) |
+| `quantity` | `float` | No | Quantity (default: 1) |
+| `vat` | `?float` | No | VAT percentage |
+| `irpf` | `?float` | No | IRPF withholding percentage |
+| `igic` | `?float` | No | IGIC percentage (Canary Islands) |
+| `surcharge` | `?float` | No | Equivalence surcharge percentage |
+| `ie` | `?float` | No | Special/excise tax percentage |
+| `ieWithheld` | `bool` | No | IE is withheld (default: false) |
+| `discount` | `?float` | No | Discount percentage |
+| `articleCode` | `?string` | No | Product code (SKU, EAN) |
+| `detailedDescription` | `?string` | No | Extended description |
+| `unit` | `?UnitOfMeasure` | No | Unit of measure |
+
+### exemptLine() Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `description` | `string` | Yes | Line description |
+| `price` | `float` | Yes | Unit price |
+| `quantity` | `float` | No | Quantity (default: 1) |
+| `reason` | `?string` | No | Exemption reason (recommended) |
+| `discount` | `?float` | No | Discount percentage |
+| `articleCode` | `?string` | No | Product code |
+| `unit` | `?UnitOfMeasure` | No | Unit of measure |
+
+### customLine() Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `description` | `string` | Yes | Line description |
+| `price` | `float` | Yes | Unit price |
+| `taxes` | `TaxBreakdown[]` | Yes | Array of tax breakdowns |
+| `quantity` | `float` | No | Quantity (default: 1) |
+| `discount` | `?float` | No | Discount percentage |
+| `articleCode` | `?string` | No | Product code |
+| `unit` | `?UnitOfMeasure` | No | Unit of measure |
+| `specialTaxableEvent` | `?SpecialTaxableEvent` | No | Special tax circumstance |
+| `specialTaxableEventReason` | `?string` | No | Reason for special event |
+
+## Source Reference
+
+Line and tax implementation:
+- `src/Invoice.php:138-253` - Line methods
+- `src/Entities/Line.php` - Line entity
+- `src/Entities/TaxBreakdown.php:9-28` - TaxBreakdown class
+- `src/Enums/Tax.php:12-55` - Tax enumeration (29 types)
+- `src/Enums/UnitOfMeasure.php` - Unit enumeration

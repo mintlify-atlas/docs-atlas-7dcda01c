@@ -1,0 +1,238 @@
+---
+title: 'Corrective Invoices'
+description: 'Create corrective invoices to amend or replace previously issued invoices'
+icon: 'file-pen'
+---
+
+Corrective invoices (rectificativas) allow you to amend errors or make adjustments to previously issued invoices. PHP FacturaE provides comprehensive support for all types of corrections recognized by Spanish tax authorities.
+
+## Basic Corrective Invoice
+
+Use the `corrects()` method to indicate that an invoice corrects a previous one:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$invoice = Invoice::create('FAC-002')
+    ->date('2024-02-15')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Corrected service', price: 1000.00, vat: 21)
+    ->corrects(
+        invoiceNumber: 'FAC-001',
+        reason: CorrectionReason::TaxableBase,
+        method: CorrectionMethod::FullReplacement
+    )
+    ->toXml();
+```
+
+<Info>
+Corrective invoices must reference the original invoice number being corrected. The corrective invoice contains the full corrected data.
+</Info>
+
+## Correction Reasons
+
+The `CorrectionReason` enum provides 22 official correction reasons defined in the FacturaE standard:
+
+### Administrative Corrections (01-09)
+
+```php
+CorrectionReason::InvoiceNumber          // 01 - Invoice number
+CorrectionReason::InvoiceSeries          // 02 - Invoice series
+CorrectionReason::IssueDate              // 03 - Issue date
+CorrectionReason::IssuerName             // 04 - Issuer name/business name
+CorrectionReason::RecipientName          // 05 - Recipient name/business name
+CorrectionReason::IssuerTaxId            // 06 - Issuer tax ID
+CorrectionReason::RecipientTaxId         // 07 - Recipient tax ID
+CorrectionReason::IssuerAddress          // 08 - Issuer address
+CorrectionReason::RecipientAddress       // 09 - Recipient address
+```
+
+### Transaction Corrections (10-16)
+
+```php
+CorrectionReason::TransactionDetail      // 10 - Transaction details
+CorrectionReason::TaxRate                // 11 - Tax rate
+CorrectionReason::TaxAmount              // 12 - Tax amount
+CorrectionReason::TaxPeriod              // 13 - Tax period
+CorrectionReason::InvoiceClass           // 14 - Invoice class
+CorrectionReason::LegalLiterals          // 15 - Legal literals
+CorrectionReason::TaxableBase            // 16 - Taxable base
+```
+
+### Tax Calculation Corrections (80-85)
+
+```php
+CorrectionReason::OutputTaxCalculation   // 80 - Output tax calculation
+CorrectionReason::WithheldTaxCalculation // 81 - Withheld tax calculation
+CorrectionReason::BaseModifiedReturns    // 82 - Base modified by returns
+CorrectionReason::BaseModifiedDiscounts  // 83 - Base modified by discounts
+CorrectionReason::BaseModifiedCourtOrder // 84 - Base modified by court order
+CorrectionReason::BaseModifiedInsolvency // 85 - Base modified by insolvency
+```
+
+<Note>
+Each correction reason has an official description accessible via `$reason->description()` method.
+</Note>
+
+## Correction Methods
+
+Specify how the correction should be applied using `CorrectionMethod`:
+
+```php
+use PhpFacturae\Enums\CorrectionMethod;
+
+// Full replacement (most common)
+CorrectionMethod::FullReplacement        // 01 - Complete replacement
+
+// Only differences
+CorrectionMethod::Differences            // 02 - Only the differences
+
+// Volume discounts
+CorrectionMethod::VolumeDiscount         // 03 - Volume-based discount
+
+// Tax authority authorized
+CorrectionMethod::TaxAuthorityAuthorized // 04 - Authorized by tax authority
+```
+
+<Steps>
+
+### FullReplacement (Default)
+
+The most common method. The corrective invoice contains the complete corrected data, fully replacing the original invoice.
+
+### Differences
+
+Only the differences between the original and corrected amounts are included in the corrective invoice.
+
+### VolumeDiscount
+
+Used for volume-based discounts applied retroactively over a period of operations.
+
+### TaxAuthorityAuthorized
+
+For corrections specifically authorized by the Spanish Tax Agency (AEAT).
+
+</Steps>
+
+## Fiscal Period Corrections
+
+For tax-related corrections, you can specify the fiscal period affected:
+
+```php
+$invoice = Invoice::create('FAC-RECT-2024-Q1')
+    ->date('2024-04-10')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Corrected quarterly service', price: 3000.00, vat: 21)
+    ->corrects(
+        invoiceNumber: 'FAC-2024-001',
+        reason: CorrectionReason::TaxPeriod,
+        method: CorrectionMethod::FullReplacement,
+        periodStart: '2024-01-01',
+        periodEnd: '2024-03-31'
+    )
+    ->toXml();
+```
+
+<Warning>
+Both `periodStart` and `periodEnd` must be provided together. They define the fiscal period for tax corrections like VAT recalculations.
+</Warning>
+
+## Complete Example
+
+Here's a complete example correcting a taxable base error with fiscal period:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Enums\CorrectionReason;
+use PhpFacturae\Enums\CorrectionMethod;
+
+$seller = Party::company('B12345678', 'Mi Empresa S.L.')
+    ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid');
+
+$buyer = Party::company('A87654321', 'Cliente S.A.')
+    ->address('Gran Via 10', '28013', 'Madrid', 'Madrid');
+
+$correctiveInvoice = Invoice::create('FAC-RECT-001')
+    ->series('R')
+    ->date('2024-02-20')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Consulting services (corrected)', price: 1200.00, vat: 21)
+    ->line('Additional hours', price: 300.00, vat: 21)
+    ->corrects(
+        invoiceNumber: 'FAC-001',
+        series: 'A',
+        reason: CorrectionReason::TaxableBase,
+        method: CorrectionMethod::FullReplacement,
+        periodStart: '2024-01-01',
+        periodEnd: '2024-01-31'
+    )
+    ->legalLiteral('Corrects taxable base of original invoice FAC-001 from Q1 2024')
+    ->transferPayment(iban: 'ES91 2100 0418 4502 0005 1332', dueDate: '2024-03-20')
+    ->toXml();
+```
+
+## Method Reference
+
+The `corrects()` method is defined in `Invoice.php:319`:
+
+```php
+public function corrects(
+    string $invoiceNumber,
+    CorrectionReason $reason = CorrectionReason::TransactionDetail,
+    CorrectionMethod $method = CorrectionMethod::FullReplacement,
+    ?string $series = null,
+    string|DateTimeImmutable|null $periodStart = null,
+    string|DateTimeImmutable|null $periodEnd = null,
+): self
+```
+
+### Parameters
+
+- **invoiceNumber** (required): The number of the invoice being corrected
+- **reason**: The correction reason (defaults to `TransactionDetail`)
+- **method**: How the correction should be applied (defaults to `FullReplacement`)
+- **series**: Optional series of the original invoice
+- **periodStart**: Start date of the affected fiscal period
+- **periodEnd**: End date of the affected fiscal period
+
+<Tip>
+Use `legalLiteral()` to add explanatory text about why the correction was necessary. This helps with tax authority audits.
+</Tip>
+
+## Common Scenarios
+
+### Correcting an Amount Error
+
+```php
+->corrects('FAC-050', CorrectionReason::TaxableBase)
+```
+
+### Correcting Tax Rate Applied
+
+```php
+->corrects('FAC-051', CorrectionReason::TaxRate)
+```
+
+### Correcting Client Details
+
+```php
+->corrects('FAC-052', CorrectionReason::RecipientName)
+```
+
+### Volume-Based Retroactive Discount
+
+```php
+->corrects(
+    'FAC-100',
+    CorrectionReason::BaseModifiedDiscounts,
+    CorrectionMethod::VolumeDiscount,
+    periodStart: '2024-01-01',
+    periodEnd: '2024-12-31'
+)
+```

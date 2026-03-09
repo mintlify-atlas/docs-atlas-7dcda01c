@@ -1,0 +1,257 @@
+---
+title: Attachment
+description: Represents a file attachment with support for loading from disk or raw data
+---
+
+The `Attachment` entity represents a file attachment that can be included with an invoice. Attachments are base64-encoded and include MIME type information.
+
+## Static Factory Methods
+
+The `Attachment` class uses static factory methods instead of a public constructor:
+
+### fromFile()
+
+Creates an attachment from a file on disk.
+
+```php
+public static function fromFile(
+    string $path,
+    string $description,
+    ?string $mimeType = null
+): Attachment
+```
+
+<ParamField path="path" type="string" required>
+  Absolute or relative path to the file
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Human-readable description of the attachment
+</ParamField>
+
+<ParamField path="mimeType" type="string|null" default="null">
+  MIME type of the file. If `null`, will be auto-detected using `mime_content_type()`
+</ParamField>
+
+**Throws:** `RuntimeException` if the file does not exist
+
+### fromData()
+
+Creates an attachment from raw data in memory.
+
+```php
+public static function fromData(
+    string $data,
+    string $mimeType,
+    string $description
+): Attachment
+```
+
+<ParamField path="data" type="string" required>
+  Raw file data (will be base64-encoded automatically)
+</ParamField>
+
+<ParamField path="mimeType" type="string" required>
+  MIME type of the data
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Human-readable description of the attachment
+</ParamField>
+
+## Properties
+
+<ResponseField name="data" type="string">
+  Base64-encoded file data
+</ResponseField>
+
+<ResponseField name="mimeType" type="string">
+  MIME type of the attachment
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Human-readable description
+</ResponseField>
+
+## Supported MIME Types
+
+Common MIME types for invoice attachments:
+
+### Documents
+- `application/pdf` - PDF documents
+- `application/msword` - Microsoft Word (.doc)
+- `application/vnd.openxmlformats-officedocument.wordprocessingml.document` - Word (.docx)
+- `application/vnd.ms-excel` - Microsoft Excel (.xls)
+- `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (.xlsx)
+- `text/plain` - Plain text files
+- `text/csv` - CSV files
+
+### Images
+- `image/jpeg` - JPEG images
+- `image/png` - PNG images
+- `image/gif` - GIF images
+- `image/svg+xml` - SVG images
+
+### Archives
+- `application/zip` - ZIP archives
+- `application/x-rar-compressed` - RAR archives
+- `application/x-7z-compressed` - 7-Zip archives
+
+### Other
+- `application/xml` - XML files
+- `application/json` - JSON files
+- `application/octet-stream` - Generic binary data (fallback)
+
+## Example Usage
+
+### Attach PDF from File
+
+```php
+use PhpFacturae\Entities\Attachment;
+
+$attachment = Attachment::fromFile(
+    path: '/path/to/contract.pdf',
+    description: 'Service Contract'
+    // mimeType will be auto-detected as 'application/pdf'
+);
+```
+
+### Attach with Explicit MIME Type
+
+```php
+$attachment = Attachment::fromFile(
+    path: '/path/to/receipt.jpg',
+    description: 'Payment Receipt Photo',
+    mimeType: 'image/jpeg'
+);
+```
+
+### Attach from Raw Data
+
+```php
+$csvData = "Product,Quantity,Price\nWidget,10,9.99";
+
+$attachment = Attachment::fromData(
+    data: $csvData,
+    mimeType: 'text/csv',
+    description: 'Order Details'
+);
+```
+
+### Attach Generated PDF
+
+```php
+// Using a PDF library to generate content
+$pdfGenerator = new SomePdfLibrary();
+$pdfContent = $pdfGenerator->render();
+
+$attachment = Attachment::fromData(
+    data: $pdfContent,
+    mimeType: 'application/pdf',
+    description: 'Detailed Invoice Report'
+);
+```
+
+### Multiple Attachments
+
+```php
+use PhpFacturae\Invoice;
+
+$invoice = new Invoice(
+    // ... invoice parameters
+);
+
+// Attach contract
+$invoice->addAttachment(
+    Attachment::fromFile(
+        path: '/contracts/2024/contract-123.pdf',
+        description: 'Service Agreement 2024'
+    )
+);
+
+// Attach specifications
+$invoice->addAttachment(
+    Attachment::fromFile(
+        path: '/specs/technical-specs.docx',
+        description: 'Technical Specifications'
+    )
+);
+
+// Attach delivery receipt
+$invoice->addAttachment(
+    Attachment::fromFile(
+        path: '/receipts/delivery-receipt.jpg',
+        description: 'Signed Delivery Receipt'
+    )
+);
+```
+
+### Error Handling
+
+```php
+try {
+    $attachment = Attachment::fromFile(
+        path: '/missing/file.pdf',
+        description: 'This will fail'
+    );
+} catch (\RuntimeException $e) {
+    echo $e->getMessage(); // "Attachment file not found: /missing/file.pdf"
+}
+```
+
+### Attach XML Data
+
+```php
+$xmlData = '<?xml version="1.0"?><order><id>12345</id></order>';
+
+$attachment = Attachment::fromData(
+    data: $xmlData,
+    mimeType: 'application/xml',
+    description: 'Original Order XML'
+);
+```
+
+### Attach Image from Upload
+
+```php
+// After processing a file upload
+$uploadedFile = $_FILES['receipt'];
+
+if ($uploadedFile['error'] === UPLOAD_ERR_OK) {
+    $attachment = Attachment::fromFile(
+        path: $uploadedFile['tmp_name'],
+        description: 'Customer Receipt',
+        mimeType: $uploadedFile['type']
+    );
+    
+    $invoice->addAttachment($attachment);
+}
+```
+
+### Best Practices
+
+<Tip>
+  **Keep attachments reasonably sized:** Large attachments will significantly increase the XML file size. Consider:
+  - Compressing images before attaching
+  - Using PDF compression
+  - Limiting total attachment size to a few MB
+</Tip>
+
+<Warning>
+  **Security consideration:** Always validate file types and content before creating attachments, especially when accepting user uploads. Verify MIME types match actual file content.
+</Warning>
+
+```php
+// Validate file type before attaching
+function validateAndAttach(string $path, string $description): ?Attachment
+{
+    $allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    $detectedType = mime_content_type($path);
+    
+    if (!in_array($detectedType, $allowedTypes)) {
+        throw new \InvalidArgumentException("File type not allowed: {$detectedType}");
+    }
+    
+    return Attachment::fromFile($path, $description);
+}
+```

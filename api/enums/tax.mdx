@@ -1,0 +1,148 @@
+---
+title: Tax
+description: Tax type codes for Spanish invoicing (IVA, IRPF, IGIC, etc.)
+---
+
+The `Tax` enum represents all tax types supported by the FacturaE 3.2.2 XSD specification. Each tax type has a unique code used in the XML output.
+
+## Enum Cases
+
+The following table lists all 29 tax types available:
+
+| Case | Code | Description |
+|------|------|-------------|
+| `IVA` | `01` | Impuesto sobre el Valor Añadido (VAT) |
+| `IPSI` | `02` | Impuesto sobre la Producción, los Servicios y la Importación |
+| `IGIC` | `03` | Impuesto General Indirecto Canario |
+| `IRPF` | `04` | Impuesto sobre la Renta de las Personas Físicas (withheld by default) |
+| `Other` | `05` | Other taxes |
+| `ITPAJD` | `06` | Impuesto sobre Transmisiones Patrimoniales y Actos Jurídicos Documentados |
+| `IE` | `07` | Impuestos Especiales |
+| `RA` | `08` | Renta Aduanas |
+| `IGTECM` | `09` | Impuesto General sobre el Tráfico de Empresas (Ceuta/Melilla) |
+| `IECDPCAC` | `10` | Impuesto Especial sobre Combustibles Derivados del Petróleo (Ceuta/Melilla) |
+| `IIIMAB` | `11` | Impuesto sobre las Instalaciones que inciden en el Medio Ambiente (Baleares) |
+| `ICIO` | `12` | Impuesto sobre Construcciones, Instalaciones y Obras |
+| `IMVDN` | `13` | Impuesto Municipal sobre Viviendas Desocupadas (Navarra) |
+| `IMSN` | `14` | Impuesto Municipal sobre Solares (Navarra) |
+| `IMGSN` | `15` | Impuesto Municipal sobre Gastos Suntuarios (Navarra) |
+| `IMPN` | `16` | Impuesto Municipal sobre Publicidad (Navarra) |
+| `REIVA` | `17` | Régimen Especial de IVA |
+| `REIGIC` | `18` | Régimen Especial de IGIC |
+| `REIPSI` | `19` | Régimen Especial de IPSI |
+| `IPS` | `20` | Impuesto sobre las Primas de Seguros |
+| `RLEA` | `21` | Recargo de Equivalencia de IVA |
+| `IVPEE` | `22` | Impuesto sobre el Valor de la Producción de Energía Eléctrica |
+| `IPCNG` | `23` | Impuesto sobre la Producción de Combustible Nuclear Gastado |
+| `IACNG` | `24` | Impuesto sobre el Almacenamiento de Combustible Nuclear Gastado |
+| `IDEC` | `25` | Impuesto sobre los Depósitos en las Entidades de Crédito |
+| `ILTCAC` | `26` | Impuesto sobre los Gases Fluorados de Efecto Invernadero |
+| `IGFEI` | `27` | Impuesto sobre los Gases Fluorados de Efecto Invernadero |
+| `IRNR` | `28` | Impuesto sobre la Renta de No Residentes (withheld by default) |
+| `ISS` | `29` | Impuesto sobre las Sociedades |
+
+## Methods
+
+### isWithheldByDefault()
+
+Determines if a tax is withheld by default (retained at source). This can be overridden using the `isWithholding` parameter in `TaxBreakdown`.
+
+```php
+public function isWithheldByDefault(): bool
+```
+
+Returns `true` for:
+- `Tax::IRPF` - Income tax withheld from individuals
+- `Tax::IRNR` - Non-resident income tax
+
+All other tax types return `false`.
+
+## Usage Examples
+
+### Basic Tax Usage
+
+```php
+use PhpFacturae\Enums\Tax;
+
+// Add IVA (VAT) at 21%
+$invoice->addItem(
+    name: 'Web Development Services',
+    quantity: 10,
+    price: 100.00,
+    tax: Tax::IVA,
+    taxRate: 21.0
+);
+```
+
+### Withholding Tax (IRPF)
+
+```php
+use PhpFacturae\Enums\Tax;
+
+// IRPF is withheld by default
+$invoice->addItem(
+    name: 'Professional Services',
+    quantity: 1,
+    price: 1000.00,
+    tax: Tax::IRPF,
+    taxRate: 15.0
+);
+
+// Check if tax is withheld
+if (Tax::IRPF->isWithheldByDefault()) {
+    echo 'This tax will be withheld';
+}
+```
+
+### Canary Islands Tax (IGIC)
+
+```php
+use PhpFacturae\Enums\Tax;
+
+// Use IGIC for Canary Islands instead of IVA
+$invoice->addItem(
+    name: 'Product',
+    quantity: 5,
+    price: 50.00,
+    tax: Tax::IGIC,
+    taxRate: 7.0
+);
+```
+
+### Multiple Tax Types
+
+```php
+use PhpFacturae\Enums\Tax;
+
+// Item with IVA
+$invoice->addItem(
+    name: 'Product A',
+    quantity: 1,
+    price: 100.00,
+    tax: Tax::IVA,
+    taxRate: 21.0
+);
+
+// Service with IRPF withholding
+$invoice->addItem(
+    name: 'Consulting Service',
+    quantity: 1,
+    price: 500.00,
+    tax: Tax::IRPF,
+    taxRate: 15.0
+);
+```
+
+## Notes
+
+- The most commonly used tax type in Spain is `IVA` (VAT)
+- Standard IVA rates are 21% (general), 10% (reduced), and 4% (super-reduced)
+- `IRPF` and `IRNR` are withholding taxes that reduce the amount paid to the supplier
+- Canary Islands use `IGIC` instead of `IVA`
+- Ceuta and Melilla use `IPSI` instead of `IVA`
+- The tax code values are defined by the Spanish Tax Agency (AEAT)
+
+## See Also
+
+- [TaxBreakdown](/api/classes/tax-breakdown) - For detailed tax configuration
+- [Invoice::addItem()](/api/classes/invoice#additem) - Adding line items with taxes

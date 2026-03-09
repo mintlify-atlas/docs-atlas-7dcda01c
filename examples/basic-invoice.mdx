@@ -1,0 +1,250 @@
+---
+title: "Basic Invoice"
+description: "Complete example of creating a basic invoice with seller, buyer, line items, VAT, and payment method"
+---
+
+## Overview
+
+This guide walks you through creating a complete, working invoice from start to finish. You'll learn how to:
+
+- Set up seller and buyer information
+- Add invoice lines with VAT
+- Configure payment methods
+- Export the invoice to a file
+
+## Full Working Example
+
+Here's a complete invoice ready to copy and use:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+// Create the invoice
+$invoice = Invoice::create('FAC-001')
+    ->series('A')
+    ->date('2024-01-15')
+    ->seller(
+        Party::company('A00000000', 'Empresa Test S.L.')
+            ->address('C/ Test, 1', '28001', 'Madrid', 'Madrid')
+            ->email('admin@empresa.es')
+            ->phone('910000000')
+    )
+    ->buyer(
+        Party::person('00000000A', 'Juan', 'Garcia', 'Lopez')
+            ->address('C/ Comprador, 5', '08001', 'Barcelona', 'Barcelona')
+            ->email('juan@example.com')
+    )
+    ->line('Servicio de consultoria', price: 1000.00, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-02-15'
+    )
+    ->export('factura-001.xsig');
+```
+
+<Note>
+The invoice will be automatically validated before export. If there are any errors (missing seller, buyer, or lines), an `InvoiceValidationException` will be thrown.
+</Note>
+
+## Step-by-Step Breakdown
+
+Let's break down each component of the invoice:
+
+<Steps>
+  <Step title="Create Invoice Base">
+    Start by creating the invoice with a unique number and optional series:
+
+    ```php
+    $invoice = Invoice::create('FAC-001')
+        ->series('A')
+        ->date('2024-01-15');
+    ```
+
+    - **Number**: Unique identifier for the invoice (required)
+    - **Series**: Optional grouping (e.g., 'A', 'B', or 'R' for rectificative)
+    - **Date**: Issue date in `YYYY-MM-DD` format or `DateTimeImmutable` object
+  </Step>
+
+  <Step title="Define the Seller">
+    Add your company information as the seller:
+
+    ```php
+    ->seller(
+        Party::company('A00000000', 'Empresa Test S.L.')
+            ->address('C/ Test, 1', '28001', 'Madrid', 'Madrid')
+            ->email('admin@empresa.es')
+            ->phone('910000000')
+    )
+    ```
+
+    <Info>
+    Use `Party::company()` for legal entities (B2B) or `Party::person()` for individuals (B2C).
+    </Info>
+  </Step>
+
+  <Step title="Define the Buyer">
+    Add the customer information:
+
+    ```php
+    ->buyer(
+        Party::person('00000000A', 'Juan', 'Garcia', 'Lopez')
+            ->address('C/ Comprador, 5', '08001', 'Barcelona', 'Barcelona')
+            ->email('juan@example.com')
+    )
+    ```
+
+    For a person, provide:
+    - Tax number (NIF/NIE)
+    - First name
+    - First surname
+    - Second surname (optional)
+  </Step>
+
+  <Step title="Add Invoice Lines">
+    Add one or more invoice lines with description, price, and VAT:
+
+    ```php
+    ->line('Servicio de consultoria', price: 1000.00, vat: 21)
+    ```
+
+    The line method accepts:
+    - **description**: Service or product description
+    - **price**: Unit price (excluding VAT)
+    - **quantity**: Units (defaults to 1)
+    - **vat**: VAT percentage (21%, 10%, 4%, etc.)
+  </Step>
+
+  <Step title="Set Payment Method">
+    Configure how the invoice will be paid:
+
+    ```php
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-02-15'
+    )
+    ```
+
+    Available payment methods:
+    - `transferPayment()` - Bank transfer
+    - `cashPayment()` - Cash payment
+    - `cardPayment()` - Card payment
+    - `directDebitPayment()` - Direct debit (domiciliación)
+  </Step>
+
+  <Step title="Export to File">
+    Finally, export the invoice to an XML file:
+
+    ```php
+    ->export('factura-001.xsig');
+    ```
+
+    This generates a valid FacturaE 3.2.2 XML file that can be:
+    - Sent to Spanish Tax Authority (AEAT)
+    - Submitted to FACe (public administration)
+    - Used with accounting software
+  </Step>
+</Steps>
+
+## Multiple Lines Example
+
+Most invoices have multiple lines. Here's how to add several items:
+
+```php
+Invoice::create('FAC-002')
+    ->date('2024-01-20')
+    ->seller(
+        Party::company('A00000000', 'Empresa Test S.L.')
+            ->address('C/ Test, 1', '28001', 'Madrid', 'Madrid')
+    )
+    ->buyer(
+        Party::company('B12345678', 'Cliente Demo S.L.')
+            ->address('C/ Gran Via, 1', '28013', 'Madrid', 'Madrid')
+    )
+    ->line('Desarrollo web', price: 1500.00, quantity: 1, vat: 21)
+    ->line('Hosting anual', price: 120.00, quantity: 1, vat: 21)
+    ->line('Mantenimiento mensual', price: 80.00, quantity: 12, vat: 21)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-02-20'
+    )
+    ->export('factura-002.xsig');
+```
+
+<Tip>
+The library automatically calculates subtotals, VAT amounts, and total amounts for you.
+</Tip>
+
+## Line Discounts
+
+You can apply discounts at the line level:
+
+```php
+->line(
+    'Producto con descuento',
+    price: 100.00,
+    quantity: 3,
+    vat: 21,
+    discount: 10  // 10% discount
+)
+```
+
+The discount is applied before calculating VAT.
+
+## VAT-Only XML Output
+
+If you need the XML as a string instead of exporting to a file:
+
+```php
+$xml = $invoice->toXml();
+file_put_contents('factura.xml', $xml);
+// or send via API, store in database, etc.
+```
+
+## Validation Errors
+
+The library validates your invoice before export. Common validation errors:
+
+<Warning>
+**Missing Seller**: Every invoice must have a seller with valid address.
+
+```php
+// ❌ This will throw InvoiceValidationException
+Invoice::create('FAC-001')
+    ->buyer(Party::person('00000000A', 'Juan', 'Garcia'))
+    ->line('Service', price: 100, vat: 21)
+    ->toXml();
+```
+</Warning>
+
+<Warning>
+**Missing Lines**: Every invoice must have at least one line.
+
+```php
+// ❌ This will throw InvoiceValidationException
+Invoice::create('FAC-001')
+    ->seller(Party::company('A00000000', 'Test S.L.'))
+    ->buyer(Party::person('00000000A', 'Juan', 'Garcia'))
+    ->toXml();
+```
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Canary Islands IGIC" icon="island-tropical" href="/examples/canary-islands">
+    Learn how to use IGIC tax instead of VAT
+  </Card>
+  
+  <Card title="Split Payments" icon="money-bill-wave" href="/examples/split-payments">
+    Configure multiple payment installments
+  </Card>
+  
+  <Card title="Public Administration" icon="landmark" href="/examples/public-administration">
+    Invoice with DIR3 codes for FACe
+  </Card>
+  
+  <Card title="Payment Methods" icon="credit-card" href="/core/payments">
+    Explore all 19 payment methods
+  </Card>
+</CardGroup>

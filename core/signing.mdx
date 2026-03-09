@@ -1,0 +1,444 @@
+---
+title: Digital Signing
+description: Sign FacturaE invoices with XAdES-EPES signatures and optional TSA timestamping
+---
+
+## Overview
+
+PHP FacturaE supports digital signing of invoices with **XAdES-EPES** (XML Advanced Electronic Signatures - Explicit Policy-based Electronic Signatures) compliant with the Spanish FacturaE signing policy v3.1.
+
+Digital signatures:
+- Prove the invoice's authenticity
+- Ensure document integrity (detect tampering)
+- Provide non-repudiation
+- Are required for some B2G (business-to-government) invoices
+
+## Quick Start
+
+Sign an invoice with a PKCS#12 certificate:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Signer;
+
+$invoice = Invoice::create('2024-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012')
+    ->sign(Signer::pfx('path/to/certificate.pfx', 'password'))
+    ->export('signed-invoice.xml');
+```
+
+The signature is applied automatically during export.
+
+## Creating Signers
+
+### PKCS#12 Certificates (.pfx / .p12)
+
+The most common format for digital certificates:
+
+```php
+use PhpFacturae\Signer;
+
+// With password
+$signer = Signer::pfx('certificate.pfx', 'mySecurePassword');
+
+// Without password (rare)
+$signer = Signer::pfx('certificate.pfx');
+
+$invoice->sign($signer);
+```
+
+<Info>
+**PKCS#12** files bundle:
+- Private key
+- Public certificate
+- Certificate chain (CA certificates)
+
+This is the recommended format for most use cases.
+</Info>
+
+### PEM Certificates
+
+For separate certificate and key files:
+
+```php
+$signer = Signer::pem(
+    certPath: 'certificate.pem',
+    keyPath: 'private-key.pem',
+    passphrase: 'keyPassword'  // Optional
+);
+
+$invoice->sign($signer);
+```
+
+<Note>
+PEM format requires **two separate files**:
+1. Certificate file (.crt or .pem)
+2. Private key file (.key or .pem)
+
+If your private key is encrypted, provide the passphrase.
+</Note>
+
+## XAdES-EPES Signatures
+
+PHP FacturaE generates XAdES-EPES signatures that include:
+
+- **XML-DSIG** envelope signature (enveloped)
+- **SignedProperties** with certificate and policy info
+- **Policy reference** to FacturaE signing policy v3.1
+- **Signer role** (supplier)
+- **Timestamp** (optional, via TSA)
+
+### Signature Structure
+
+The generated signature includes:
+
+```xml
+<ds:Signature>
+  <ds:SignedInfo>
+    <ds:Reference URI=""><!-- Document digest --></ds:Reference>
+    <ds:Reference URI="#KeyInfo"><!-- Certificate digest --></ds:Reference>
+    <ds:Reference URI="#SignedProperties"><!-- Properties digest --></ds:Reference>
+  </ds:SignedInfo>
+  <ds:SignatureValue>...</ds:SignatureValue>
+  <ds:KeyInfo>
+    <ds:X509Data>
+      <ds:X509Certificate>...</ds:X509Certificate>
+    </ds:X509Data>
+  </ds:KeyInfo>
+  <ds:Object>
+    <xades:QualifyingProperties>
+      <xades:SignedProperties>
+        <xades:SigningTime>2024-03-09T12:00:00Z</xades:SigningTime>
+        <xades:SignaturePolicyIdentifier>
+          <xades:Description>Política de Firma FacturaE v3.1</xades:Description>
+        </xades:SignaturePolicyIdentifier>
+      </xades:SignedProperties>
+    </xades:QualifyingProperties>
+  </ds:Object>
+</ds:Signature>
+```
+
+### FacturaE Signing Policy
+
+The signer automatically references:
+- **Policy name**: Política de Firma FacturaE v3.1
+- **Policy URL**: http://www.facturae.es/politica_de_firma_formato_facturae/politica_de_firma_formato_facturae_v3_1.pdf
+- **Policy digest**: `Ohixl6upD6av8N7pEvDABhEL6hM=` (SHA-1)
+
+This ensures compliance with Spanish e-invoicing regulations.
+
+## Timestamping (TSA)
+
+Add a trusted timestamp to prove when the signature was created:
+
+```php
+$signer = Signer::pfx('certificate.pfx', 'password')
+    ->timestamp('https://freetsa.org/tsr');
+
+$invoice->sign($signer);
+```
+
+<Steps>
+  <Step title="Public TSA">
+    Use a free public timestamp authority:
+    
+    ```php
+    ->timestamp('https://freetsa.org/tsr')
+    ->timestamp('http://timestamp.digicert.com')
+    ```
+  </Step>
+  
+  <Step title="Commercial TSA with Authentication">
+    Many commercial TSAs require credentials:
+    
+    ```php
+    ->timestamp(
+        url: 'https://tsa.example.com/tsr',
+        user: 'myUsername',
+        password: 'myPassword'
+    )
+    ```
+  </Step>
+  
+  <Step title="RFC 3161 Compliance">
+    The timestamp request follows RFC 3161 (Internet X.509 PKI Time-Stamp Protocol):
+    - SHA-256 message digest
+    - ASN.1 DER encoding
+    - TimeStampToken embedded in UnsignedProperties
+  </Step>
+</Steps>
+
+<Info>
+**Why use timestamps?**
+- Proves the signature was created at a specific time
+- Remains valid even if the certificate expires later
+- Required for long-term archival (10+ years)
+- Recommended for legal disputes
+</Info>
+
+<Warning>
+If the TSA server is unavailable or returns an error, signing continues **without** the timestamp. The signature remains valid, but without time proof.
+</Warning>
+
+## Certificate Formats
+
+### Converting Certificates
+
+If you have certificates in other formats:
+
+<CodeGroup>
+
+```bash Converting PEM to PKCS#12
+# Combine certificate and key into .pfx file
+openssl pkcs12 -export \
+  -in certificate.pem \
+  -inkey private-key.pem \
+  -out certificate.pfx \
+  -name "My Certificate"
+```
+
+```bash Converting PKCS#12 to PEM
+# Extract certificate
+openssl pkcs12 -in certificate.pfx -clcerts -nokeys -out certificate.pem
+
+# Extract private key
+openssl pkcs12 -in certificate.pfx -nocerts -out private-key.pem
+```
+
+```bash Removing PEM Key Passphrase
+# Create unencrypted key (use with caution)
+openssl rsa -in encrypted-key.pem -out unencrypted-key.pem
+```
+
+</CodeGroup>
+
+### Certificate Requirements
+
+Your certificate must:
+- Be issued by a trusted Certificate Authority (CA)
+- Support digital signatures (key usage: digitalSignature)
+- Use RSA keys (recommended: 2048-bit or higher)
+- Not be expired or revoked
+
+<Tip>
+For testing, you can create self-signed certificates. For production, obtain certificates from:
+- Spanish qualified providers (FNMT, Camerfirma, etc.)
+- International CAs (DigiCert, GlobalSign, etc.)
+</Tip>
+
+## Cryptographic Details
+
+### Algorithms Used
+
+- **Canonicalization**: C14N (Canonical XML 1.0)
+- **Digest algorithm**: SHA-256
+- **Signature algorithm**: RSA-SHA256
+- **Transform**: Enveloped signature
+
+### Security Features
+
+<CardGroup cols={2}>
+  <Card title="Three-Reference Signature" icon="shield-check">
+    Signs document content, certificate info, and signed properties separately for maximum integrity.
+  </Card>
+  
+  <Card title="Certificate Embedding" icon="certificate">
+    Embeds the full X.509 certificate in the signature for verification without external lookups.
+  </Card>
+  
+  <Card title="Policy Binding" icon="file-contract">
+    References Spanish FacturaE signing policy v3.1 for regulatory compliance.
+  </Card>
+  
+  <Card title="Qualified Timestamp" icon="clock">
+    Optional RFC 3161 timestamp proves signature creation time.
+  </Card>
+</CardGroup>
+
+## Complete Examples
+
+### Basic Signing
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Signer;
+
+$seller = Party::company('B12345678', 'Acme Corp');
+$buyer = Party::company('B87654321', 'Client Ltd');
+
+$invoice = Invoice::create('2024-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Consulting', price: 1000, vat: 21)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012')
+    ->sign(Signer::pfx('certificate.pfx', 'password'))
+    ->export('signed-invoice.xml');
+
+echo "Signed invoice exported successfully.";
+```
+
+### Signing with Timestamp
+
+```php
+$signer = Signer::pfx('certificate.pfx', 'password')
+    ->timestamp('https://freetsa.org/tsr');
+
+$invoice = Invoice::create('2024-002')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Annual license', price: 5000, vat: 21)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012')
+    ->sign($signer)
+    ->export('timestamped-invoice.xml');
+```
+
+### PEM Certificate Signing
+
+```php
+$signer = Signer::pem(
+    certPath: '/path/to/cert.pem',
+    keyPath: '/path/to/key.pem',
+    passphrase: 'keyPassword'
+);
+
+$invoice = Invoice::create('2024-003')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Development', price: 3000, vat: 21, irpf: 15)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012')
+    ->sign($signer);
+
+// Get signed XML string
+$signedXml = $invoice->toXml();
+file_put_contents('output.xml', $signedXml);
+```
+
+### Signing for FACe (Public Administration)
+
+```php
+// Public administration buyer with administrative centers
+$publicBuyer = Party::company('Q2819002D', 'Ministerio de Hacienda')
+    ->address('Calle Alcalá 5', '28014', 'Madrid', 'Madrid')
+    ->centre('01', 'L01281901', 'Oficina Contable')
+    ->centre('02', 'L01281902', 'Unidad Tramitadora')
+    ->centre('03', 'L01281903', 'Oficina Gestora');
+
+$signer = Signer::pfx('qualified-cert.pfx', 'password')
+    ->timestamp('https://tsa.example.com/rfc3161');
+
+$invoice = Invoice::create('2024-FACE-001')
+    ->series('FACE')
+    ->seller($seller)
+    ->buyer($publicBuyer)
+    ->line('Professional services', price: 2500, vat: 21, irpf: 15)
+    ->transferPayment('ES12 3456 7890 1234 5678 9012', dueDate: '+30 days')
+    ->sign($signer)
+    ->export('face-signed-invoice.xml');
+
+// Upload to FACe portal
+```
+
+<Warning>
+FACe submissions require:
+- Qualified electronic signatures (certificates from approved Spanish providers)
+- Valid administrative center codes
+- Proper tax withholdings (IRPF) for services
+- Compliance with public procurement regulations
+</Warning>
+
+## Verifying Signatures
+
+To verify a signed invoice (outside PHP FacturaE):
+
+1. **Extract the certificate** from the `<X509Certificate>` element
+2. **Verify the certificate chain** against trusted CAs
+3. **Recalculate digests** for document, KeyInfo, and SignedProperties
+4. **Verify signature value** using the certificate's public key
+5. **Check timestamp** (if present) against TSA certificate
+
+Most XML signature libraries (xmlsec1, Java JSR 105, etc.) can verify XAdES-EPES signatures.
+
+```bash Verify with xmlsec1
+xmlsec1 --verify signed-invoice.xml
+```
+
+## Troubleshooting
+
+### Certificate Load Failures
+
+```php
+// Error: Failed to read PKCS#12 file
+// Solution: Check password and file format
+
+try {
+    $signer = Signer::pfx('cert.pfx', 'password');
+} catch (RuntimeException $e) {
+    echo "Certificate error: " . $e->getMessage();
+}
+```
+
+### Private Key Password Issues
+
+```php
+// PEM keys with passphrase
+$signer = Signer::pem(
+    certPath: 'cert.pem',
+    keyPath: 'encrypted-key.pem',
+    passphrase: 'keyPassword'  // Required for encrypted keys
+);
+```
+
+### Timestamp Failures
+
+Timestamp failures are **non-fatal**:
+
+```php
+// If TSA is down, signature proceeds without timestamp
+$signer = Signer::pfx('cert.pfx', 'password')
+    ->timestamp('https://unreachable-tsa.example/tsr');
+
+// Invoice is still signed, just without timestamp proof
+$invoice->sign($signer)->export('invoice.xml');
+```
+
+<Info>
+Monitor your application logs for timestamp failures. While non-fatal, consistent failures may indicate TSA issues that need addressing.
+</Info>
+
+## Method Reference
+
+### Signer Facade
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `pfx()` | `string $path, ?string $passphrase` | `Pkcs12Signer` | Create signer from PKCS#12 |
+| `pem()` | `string $certPath, string $keyPath, ?string $passphrase` | `Pkcs12Signer` | Create signer from PEM files |
+
+### Pkcs12Signer Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `pfx()` | `string $path, ?string $passphrase` | `self` | Static: Load PKCS#12 |
+| `pem()` | `string $certPath, string $keyPath, ?string $passphrase` | `self` | Static: Load PEM |
+| `timestamp()` | `string $url, ?string $user, ?string $password` | `self` | Add TSA timestamp |
+| `sign()` | `string $xml` | `string` | Sign XML document |
+
+### Invoice Signing
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `sign()` | `InvoiceSigner $signer` | `self` | Set signer for invoice |
+| `toXml()` | None | `string` | Export signed XML |
+| `export()` | `string $path` | `self` | Save signed XML to file |
+
+## Source Reference
+
+Signing implementation:
+- `src/Signer.php:9-27` - Signer facade
+- `src/Signer/Pkcs12Signer.php:26-651` - XAdES-EPES signer
+- `src/Signer/InvoiceSigner.php:7-13` - Signer interface
+- `src/Invoice.php:409-413` - Sign method

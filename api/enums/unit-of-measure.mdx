@@ -1,0 +1,166 @@
+---
+title: UnitOfMeasure
+description: Unit of measure codes for invoice line items
+---
+
+The `UnitOfMeasure` enum represents all units of measure supported by the FacturaE 3.2.2 XSD specification. Each unit has a unique code used in the XML output.
+
+## Enum Cases
+
+The following table lists all 36 units of measure available:
+
+| Case | Code | Description | Common Use |
+|------|------|-------------|------------|
+| `Units` | `01` | Units | General items, pieces |
+| `Hours` | `02` | Hours | Services, labor |
+| `Kilograms` | `03` | Kilograms | Weight measurements |
+| `Liters` | `04` | Liters | Liquids, volume |
+| `Other` | `05` | Other units | Custom/unspecified |
+| `Boxes` | `06` | Boxes | Packaging |
+| `Trays` | `07` | Trays | Food service |
+| `Barrels` | `08` | Barrels | Bulk liquids |
+| `Jerricans` | `09` | Jerricans | Containers |
+| `Bags` | `10` | Bags | Bulk goods |
+| `Carboys` | `11` | Carboys | Large bottles |
+| `Bottles` | `12` | Bottles | Beverages |
+| `Canisters` | `13` | Canisters | Containers |
+| `Tetrabriks` | `14` | Tetrabriks | Beverage packaging |
+| `Centiliters` | `15` | Centiliters | Small volumes |
+| `Centimeters` | `16` | Centimeters | Length |
+| `Bins` | `17` | Bins | Storage |
+| `Dozens` | `18` | Dozens | Groups of 12 |
+| `Cases` | `19` | Cases | Bulk packaging |
+| `Demijohns` | `20` | Demijohns | Large bottles |
+| `Grams` | `21` | Grams | Small weights |
+| `Kilometers` | `22` | Kilometers | Distance |
+| `Cans` | `23` | Cans | Food/beverage |
+| `Bunches` | `24` | Bunches | Produce |
+| `Meters` | `25` | Meters | Length, fabric |
+| `Millimeters` | `26` | Millimeters | Precision length |
+| `SixPacks` | `27` | Six-packs | Beverage packaging |
+| `Packages` | `28` | Packages | General packaging |
+| `Portions` | `29` | Portions | Food service |
+| `Rolls` | `30` | Rolls | Paper, fabric |
+| `Envelopes` | `31` | Envelopes | Mailing |
+| `Tubs` | `32` | Tubs | Containers |
+| `CubicMeters` | `33` | Cubic meters | Volume |
+| `Seconds` | `34` | Seconds | Time |
+| `Watts` | `35` | Watts | Power |
+| `KWh` | `36` | Kilowatt-hours | Energy |
+
+## Usage Examples
+
+### Services Billed by Hours
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Web Development',
+    quantity: 40,
+    unitOfMeasure: UnitOfMeasure::Hours,
+    price: 75.00
+);
+```
+
+### Products by Units
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Laptop Computer',
+    quantity: 5,
+    unitOfMeasure: UnitOfMeasure::Units,
+    price: 899.99
+);
+```
+
+### Goods Sold by Weight
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Organic Coffee Beans',
+    quantity: 2.5,
+    unitOfMeasure: UnitOfMeasure::Kilograms,
+    price: 18.50
+);
+```
+
+### Liquids by Volume
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Premium Olive Oil',
+    quantity: 10,
+    unitOfMeasure: UnitOfMeasure::Liters,
+    price: 12.00
+);
+```
+
+### Energy Consumption
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Electricity Consumption',
+    quantity: 500,
+    unitOfMeasure: UnitOfMeasure::KWh,
+    price: 0.15
+);
+```
+
+### Fabric or Materials by Meters
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Premium Linen Fabric',
+    quantity: 25,
+    unitOfMeasure: UnitOfMeasure::Meters,
+    price: 8.50
+);
+```
+
+### Bulk Packaging
+
+```php
+use PhpFacturae\Enums\UnitOfMeasure;
+
+$invoice->addItem(
+    name: 'Wine Bottles',
+    quantity: 10,
+    unitOfMeasure: UnitOfMeasure::Dozens,
+    price: 95.00
+);
+```
+
+## Most Common Units
+
+The most frequently used units of measure are:
+
+1. **Units** (`01`) - Default for countable items
+2. **Hours** (`02`) - Professional services, labor
+3. **Kilograms** (`03`) - Products sold by weight
+4. **Liters** (`04`) - Liquids and beverages
+5. **Meters** (`25`) - Construction materials, fabric
+6. **KWh** (`36`) - Utilities and energy
+
+## Notes
+
+- If no unit is specified, `Units` is typically used as the default
+- The unit of measure is required for each line item in the invoice
+- Fractional quantities are allowed (e.g., 2.5 kilograms)
+- The unit appears in the XML output's `UnitOfMeasure` field
+- Choose the unit that best represents how the item is sold or billed
+
+## See Also
+
+- [Invoice::addItem()](/api/classes/invoice#additem) - Adding line items with units
+- [InvoiceItem](/api/classes/invoice-item) - Line item configuration

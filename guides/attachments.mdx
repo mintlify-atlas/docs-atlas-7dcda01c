@@ -1,0 +1,371 @@
+---
+title: 'Attachments'
+description: 'Embed files and documents within your FacturaE invoices'
+icon: 'paperclip'
+---
+
+PHP FacturaE allows you to attach files directly to your invoices, embedding them in Base64 format within the XML. This is useful for including supporting documents like contracts, delivery notes, or technical specifications.
+
+## Quick Start
+
+The simplest way to attach a file is using the `attachFile()` convenience method:
+
+```php
+use PhpFacturae\Invoice;
+
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Consulting services', price: 2000.00, vat: 21)
+    ->attachFile('/path/to/contract.pdf', 'Signed service contract')
+    ->toXml();
+```
+
+<Info>
+Attached files are encoded in Base64 and embedded directly in the FacturaE XML, making the invoice self-contained.
+</Info>
+
+## Using the Attachment Entity
+
+For more control, use the `Attachment` entity with the `attach()` method:
+
+```php
+use PhpFacturae\Entities\Attachment;
+
+$attachment = Attachment::fromFile(
+    '/path/to/document.pdf',
+    'Contract signed on 2024-01-15'
+);
+
+$invoice = Invoice::create('FAC-002')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Development services', price: 5000.00, vat: 21)
+    ->attach($attachment)
+    ->toXml();
+```
+
+## Creating Attachments
+
+The `Attachment` class provides two static factory methods:
+
+### From File Path
+
+```php
+use PhpFacturae\Entities\Attachment;
+
+// Auto-detect MIME type
+$attachment = Attachment::fromFile(
+    '/path/to/contract.pdf',
+    'Service agreement'
+);
+
+// Specify MIME type explicitly
+$attachment = Attachment::fromFile(
+    '/path/to/document.pdf',
+    'Technical specifications',
+    'application/pdf'
+);
+```
+
+### From Raw Data
+
+```php
+// Attach data from memory or API
+$pdfData = file_get_contents('https://api.example.com/contract.pdf');
+
+$attachment = Attachment::fromData(
+    $pdfData,
+    'application/pdf',
+    'Contract retrieved from API'
+);
+
+$invoice->attach($attachment);
+```
+
+<Note>
+Both methods automatically encode the data to Base64. You should provide the raw binary data, not pre-encoded data.
+</Note>
+
+## MIME Type Detection
+
+When using `fromFile()` without specifying a MIME type, PHP FacturaE automatically detects it:
+
+```php
+// MIME type auto-detected as 'application/pdf'
+Attachment::fromFile('/path/to/contract.pdf', 'Contract');
+
+// MIME type auto-detected as 'image/png'
+Attachment::fromFile('/path/to/logo.png', 'Company logo');
+
+// Fallback to 'application/octet-stream' if detection fails
+Attachment::fromFile('/path/to/unknown.dat', 'Data file');
+```
+
+## Supported File Types
+
+While FacturaE supports any file type, these are commonly used:
+
+<Steps>
+
+### Documents
+
+- **PDF**: `application/pdf` - Contracts, reports, specifications
+- **Word**: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+- **Excel**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+
+### Images
+
+- **PNG**: `image/png`
+- **JPEG**: `image/jpeg`
+- **GIF**: `image/gif`
+
+### Archives
+
+- **ZIP**: `application/zip`
+- **TAR**: `application/x-tar`
+
+</Steps>
+
+<Warning>
+Large attachments significantly increase XML file size. Keep attachments under 5MB when possible. For larger files, consider using external references or document management systems.
+</Warning>
+
+## Multiple Attachments
+
+You can attach multiple files to a single invoice:
+
+```php
+$invoice = Invoice::create('FAC-003')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Project delivery', price: 10000.00, vat: 21)
+    // Attach contract
+    ->attachFile(
+        '/path/to/contract.pdf',
+        'Master service agreement'
+    )
+    // Attach delivery note
+    ->attachFile(
+        '/path/to/delivery-note.pdf',
+        'Delivery note DN-2024-001'
+    )
+    // Attach technical documentation
+    ->attach(
+        Attachment::fromFile(
+            '/path/to/technical-specs.pdf',
+            'Technical implementation guide'
+        )
+    )
+    ->toXml();
+```
+
+## Complete Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Entities\Attachment;
+
+$seller = Party::company('B12345678', 'Consulting SL')
+    ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid');
+
+$buyer = Party::company('A87654321', 'Tech Corp SA')
+    ->address('Gran Via 50', '28013', 'Madrid', 'Madrid');
+
+$invoice = Invoice::create('FAC-2024-042')
+    ->series('A')
+    ->date('2024-03-15')
+    ->seller($seller)
+    ->buyer($buyer)
+    // Invoice lines
+    ->line('Software development', price: 8000.00, vat: 21)
+    ->line('Project management', price: 2000.00, vat: 21)
+    // Attach supporting documents
+    ->attachFile(
+        '/var/invoices/contracts/contract-2024-042.pdf',
+        'Project contract signed 2024-01-10',
+        'application/pdf'
+    )
+    ->attachFile(
+        '/var/invoices/delivery/delivery-note-042.pdf',
+        'Delivery note with client acceptance'
+    )
+    // Payment terms
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-04-15'
+    )
+    ->export('/var/facturae/FAC-2024-042.xsig');
+```
+
+## Attachment Class Reference
+
+The `Attachment` entity is defined in `Entities/Attachment.php:9`:
+
+```php
+final class Attachment
+{
+    public readonly string $data;        // Base64-encoded data
+    public readonly string $mimeType;    // MIME type
+    public readonly string $description; // Description
+}
+```
+
+### Methods
+
+#### fromFile()
+
+```php
+public static function fromFile(
+    string $path,
+    string $description,
+    ?string $mimeType = null
+): self
+```
+
+Creates an attachment from a file path. Throws `RuntimeException` if the file doesn't exist.
+
+Defined at `Entities/Attachment.php:25`
+
+#### fromData()
+
+```php
+public static function fromData(
+    string $data,
+    string $mimeType,
+    string $description
+): self
+```
+
+Creates an attachment from raw binary data.
+
+Defined at `Entities/Attachment.php:41`
+
+## Invoice Methods
+
+### attach()
+
+```php
+public function attach(Attachment $attachment): self
+```
+
+Attaches an `Attachment` entity to the invoice.
+
+Defined at `Invoice.php:392`
+
+### attachFile()
+
+```php
+public function attachFile(
+    string $path,
+    string $description,
+    ?string $mimeType = null
+): self
+```
+
+Convenience method that creates and attaches a file in one step.
+
+Defined at `Invoice.php:403`
+
+<Tip>
+Use `attachFile()` for simple cases where you just need to attach a file. Use `attach()` with `Attachment::fromData()` when you need to attach dynamically generated content or data from external sources.
+</Tip>
+
+## Common Use Cases
+
+### Attach Signed Contract
+
+```php
+->attachFile(
+    '/contracts/signed/contract-2024-042.pdf',
+    'Signed master service agreement dated 2024-01-15'
+)
+```
+
+### Attach Delivery Proof
+
+```php
+->attachFile(
+    '/delivery-notes/DN-2024-042.pdf',
+    'Delivery note with client signature'
+)
+```
+
+### Attach Technical Documentation
+
+```php
+->attachFile(
+    '/docs/technical-spec-v2.pdf',
+    'Technical implementation specifications v2.0'
+)
+```
+
+### Attach Generated Report
+
+```php
+$reportPdf = generateMonthlyReport();
+
+->attach(
+    Attachment::fromData(
+        $reportPdf,
+        'application/pdf',
+        'Monthly activity report for January 2024'
+    )
+)
+```
+
+### Attach Image Evidence
+
+```php
+->attachFile(
+    '/photos/installation-complete.jpg',
+    'Photo evidence of completed installation',
+    'image/jpeg'
+)
+```
+
+## Best Practices
+
+<Steps>
+
+### Use Descriptive Names
+
+Provide clear descriptions that explain what the document is and why it's attached.
+
+### Keep Files Small
+
+Compress PDFs and optimize images before attaching to keep XML file sizes manageable.
+
+### Specify MIME Types
+
+For non-standard file types, always explicitly specify the MIME type.
+
+### Validate Files Exist
+
+Check that files exist before attempting to attach them to avoid runtime errors.
+
+### Consider Alternatives for Large Files
+
+For files over 5-10MB, consider hosting them externally and including a reference link instead.
+
+</Steps>
+
+## Error Handling
+
+```php
+use PhpFacturae\Entities\Attachment;
+use RuntimeException;
+
+try {
+    $attachment = Attachment::fromFile(
+        '/path/to/contract.pdf',
+        'Service contract'
+    );
+} catch (RuntimeException $e) {
+    // Handle missing file
+    echo "Attachment file not found: " . $e->getMessage();
+}
+```
+
+The `fromFile()` method throws a `RuntimeException` with message "Attachment file not found: {path}" if the file doesn't exist.

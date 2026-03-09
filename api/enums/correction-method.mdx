@@ -1,0 +1,191 @@
+---
+title: CorrectionMethod
+description: Correction method codes for how corrective invoices are applied
+---
+
+The `CorrectionMethod` enum represents the methods for applying corrections in corrective or credit invoices. It defines how the correction relates to the original invoice.
+
+## Enum Cases
+
+| Case | Code | Description | Use Case |
+|------|------|-------------|----------|
+| `FullReplacement` | `01` | Full replacement (Rectificación íntegra) | Replace entire original invoice |
+| `Differences` | `02` | Differences only (Rectificación por diferencias) | Only correct the changed amounts |
+| `VolumeDiscount` | `03` | Volume discount (Descuento por volumen) | Apply volume/period discount |
+| `TaxAuthorityAuthorized` | `04` | Tax authority authorized | Authorized by Tax Agency |
+
+## Correction Method Details
+
+### FullReplacement (01)
+
+**Full replacement** creates a corrective invoice that completely replaces the original invoice. The corrective invoice contains all line items with the correct values.
+
+**When to use:**
+- Correcting multiple errors in the original invoice
+- Simplifying accounting by voiding and reissuing
+- Major changes to invoice structure
+
+**How it works:**
+1. Original invoice is considered void
+2. Corrective invoice contains all correct values
+3. Both invoices remain in accounting records
+
+### Differences (02)
+
+**Differences method** creates a corrective invoice that only includes the differences (positive or negative) between the original and corrected amounts.
+
+**When to use:**
+- Partial refunds or adjustments
+- Correcting specific line items
+- Clearer audit trail of changes
+
+**How it works:**
+1. Original invoice remains valid
+2. Corrective invoice shows only the delta
+3. Final amount = Original + Correction
+
+### VolumeDiscount (03)
+
+**Volume discount** is a special correction type for applying retrospective discounts based on purchase volume or period.
+
+**When to use:**
+- End-of-period volume rebates
+- Loyalty discounts applied retrospectively
+- Bulk purchase incentives
+
+**How it works:**
+1. Original invoices remain valid
+2. Corrective invoice reduces total due
+3. References multiple original invoices
+
+### TaxAuthorityAuthorized (04)
+
+**Tax authority authorized** corrections are explicitly approved or required by the Spanish Tax Agency (AEAT).
+
+**When to use:**
+- Tax agency audit adjustments
+- Official correction requests
+- Special circumstances requiring authorization
+
+## Usage Examples
+
+### Full Replacement Example
+
+```php
+use PhpFacturae\Enums\{CorrectionMethod, CorrectionReason};
+
+// Original invoice had multiple errors - replace entirely
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionMethod(CorrectionMethod::FullReplacement);
+$creditNote->setCorrectionReason(CorrectionReason::TaxRate);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+
+// Add all line items with correct values
+$creditNote->addItem('Product A', 10, 100.00);
+$creditNote->addItem('Product B', 5, 50.00);
+```
+
+### Differences Example
+
+```php
+use PhpFacturae\Enums\{CorrectionMethod, CorrectionReason};
+
+// Customer returned 2 units - show only the difference
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionMethod(CorrectionMethod::Differences);
+$creditNote->setCorrectionReason(CorrectionReason::BaseModifiedReturns);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+
+// Only include the returned items (negative quantity)
+$creditNote->addItem('Product A', -2, 100.00);
+```
+
+### Volume Discount Example
+
+```php
+use PhpFacturae\Enums\{CorrectionMethod, CorrectionReason};
+
+// Apply 5% discount for reaching annual volume target
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionMethod(CorrectionMethod::VolumeDiscount);
+$creditNote->setCorrectionReason(CorrectionReason::BaseModifiedDiscounts);
+
+// Reference all invoices from the period
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+$creditNote->addCorrectedInvoice('A', '12346', new DateTime('2024-02-10'));
+$creditNote->addCorrectedInvoice('A', '12347', new DateTime('2024-03-05'));
+
+// Add discount line
+$creditNote->addItem('Q1 Volume Discount (5%)', 1, -250.00);
+```
+
+### Tax Authority Authorized Example
+
+```php
+use PhpFacturae\Enums\{CorrectionMethod, CorrectionReason};
+
+// Tax audit required correction
+$creditNote = new Invoice();
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionMethod(CorrectionMethod::TaxAuthorityAuthorized);
+$creditNote->setCorrectionReason(CorrectionReason::TaxAmount);
+$creditNote->addCorrectedInvoice('A', '12345', new DateTime('2024-01-15'));
+$creditNote->setAdditionalInformation('AEAT Authorization: AUT-2024-123456');
+```
+
+## Choosing the Right Method
+
+### Use Full Replacement When:
+
+- Multiple fields need correction
+- Complete invoice structure changes
+- Simplicity is preferred over precision
+- Both parties agree to void and reissue
+
+### Use Differences When:
+
+- Only specific amounts change
+- Detailed audit trail needed
+- Partial refunds or adjustments
+- Original invoice mostly correct
+
+### Use Volume Discount When:
+
+- Retrospective discounts
+- Multiple invoices affected
+- Period-end rebates
+- Loyalty programs
+
+### Use Tax Authority Authorized When:
+
+- Correction mandated by AEAT
+- Audit adjustments
+- Official requirements
+- Special circumstances
+
+## Accounting Impact
+
+| Method | Original Invoice | Corrective Invoice | Net Effect |
+|--------|------------------|-------------------|------------|
+| Full Replacement | Voided | Replaces original | New total |
+| Differences | Remains valid | Adds to original | Original ± Correction |
+| Volume Discount | Remain valid | Reduces total | Sum of all |
+| Tax Authority | Depends on case | As directed | As required |
+
+## Notes
+
+- The correction method must match the correction reason logically
+- Full replacement is simpler but creates more accounting entries
+- Differences method provides better traceability
+- Volume discounts can reference multiple original invoices
+- Always document the reason for corrections
+- Keep supporting documentation for audits
+
+## See Also
+
+- [CorrectionReason](/api/enums/correction-reason) - Why the correction is needed
+- [Invoice::setCorrectionMethod()](/api/classes/invoice#setcorrectionmethod) - Set correction method
+- [Invoice::addCorrectedInvoice()](/api/classes/invoice#addcorrectedinvoice) - Reference original invoices

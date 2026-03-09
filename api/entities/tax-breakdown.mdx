@@ -1,0 +1,266 @@
+---
+title: TaxBreakdown
+description: Represents a tax breakdown with type, rate, surcharge, and withholding information
+---
+
+The `TaxBreakdown` entity represents a single tax applied to an invoice or line item. It includes the tax type, rate, optional surcharge rate, and whether the tax is withheld or charged.
+
+## Constructor
+
+```php
+new TaxBreakdown(
+    Tax $type,
+    float $rate,
+    ?bool $isWithholding = null,
+    ?float $surchargeRate = null
+)
+```
+
+### Parameters
+
+<ParamField path="type" type="Tax" required>
+  Type of tax. See [Tax](/api/enums/tax) for available options
+</ParamField>
+
+<ParamField path="rate" type="float" required>
+  Tax rate as a percentage (e.g., `21` for 21%)
+</ParamField>
+
+<ParamField path="isWithholding" type="bool|null" default="null">
+  Whether this tax is withheld (deducted) or charged (added). If `null`, uses the default behavior for the tax type:
+  - IRPF and IRNR: withheld by default (`true`)
+  - All other taxes: charged by default (`false`)
+</ParamField>
+
+<ParamField path="surchargeRate" type="float|null" default="null">
+  Surcharge rate (recargo de equivalencia) as a percentage. Only applicable to IVA (VAT)
+</ParamField>
+
+## Properties
+
+<ResponseField name="type" type="Tax">
+  Type of tax
+</ResponseField>
+
+<ResponseField name="rate" type="float">
+  Tax rate percentage
+</ResponseField>
+
+<ResponseField name="isWithholding" type="bool">
+  Whether this tax is withheld. Determined automatically from the tax type if not explicitly set
+</ResponseField>
+
+<ResponseField name="surchargeRate" type="float|null">
+  Surcharge rate percentage (IVA only)
+</ResponseField>
+
+## Tax Types
+
+The `Tax` enum includes common Spanish tax types:
+
+- `IVA` (01) - Value Added Tax (standard Spanish VAT)
+- `IPSI` (02) - Canary Islands equivalent to IVA
+- `IGIC` (03) - Canary Islands General Indirect Tax
+- `IRPF` (04) - Personal Income Tax (withheld by default)
+- `IRNR` (28) - Non-Resident Income Tax (withheld by default)
+- And [many more](/api/enums/tax)
+
+## Withholding vs Charged Taxes
+
+### Charged Taxes (isWithholding = false)
+
+Most taxes are charged (added to the invoice total):
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+// IVA is charged by default
+$vat = new TaxBreakdown(Tax::IVA, 21);
+var_dump($vat->isWithholding); // false
+```
+
+### Withheld Taxes (isWithholding = true)
+
+Some taxes are withheld (deducted from the invoice total):
+
+```php
+// IRPF is withheld by default
+$irpf = new TaxBreakdown(Tax::IRPF, 15);
+var_dump($irpf->isWithholding); // true
+```
+
+### Overriding Default Behavior
+
+You can explicitly set the withholding behavior:
+
+```php
+// Force IVA to be withheld (unusual)
+$reversedVat = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 21,
+    isWithholding: true
+);
+```
+
+## Surcharges (Recargo de Equivalencia)
+
+Surcharges are additional percentages applied to IVA for specific business types. The surcharge is calculated on the same base as the IVA:
+
+```php
+// 21% IVA + 5.2% surcharge
+$vatWithSurcharge = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 21,
+    surchargeRate: 5.2
+);
+```
+
+**Common IVA + Surcharge Combinations:**
+
+- 21% IVA + 5.2% surcharge
+- 10% IVA + 1.4% surcharge
+- 4% IVA + 0.5% surcharge
+
+## Example Usage
+
+### Standard IVA (21%)
+
+```php
+use PhpFacturae\Entities\TaxBreakdown;
+use PhpFacturae\Enums\Tax;
+
+$tax = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 21
+);
+```
+
+### Reduced IVA (10%)
+
+```php
+$reducedVat = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 10
+);
+```
+
+### Super-Reduced IVA (4%)
+
+```php
+$superReducedVat = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 4
+);
+```
+
+### IVA with Surcharge
+
+```php
+$vatWithSurcharge = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 21,
+    surchargeRate: 5.2
+);
+```
+
+### IRPF Withholding
+
+```php
+$irpf = new TaxBreakdown(
+    type: Tax::IRPF,
+    rate: 15
+);
+
+var_dump($irpf->isWithholding); // true (automatically set)
+```
+
+### Multiple Taxes on a Line
+
+```php
+use PhpFacturae\Entities\Line;
+
+$line = new Line(
+    description: 'Professional Services',
+    quantity: 10,
+    unitPrice: 100.00,
+    taxes: [
+        new TaxBreakdown(Tax::IVA, 21),    // +21% IVA
+        new TaxBreakdown(Tax::IRPF, 15),   // -15% IRPF withholding
+    ]
+);
+
+// Base: 1000.00
+// +21% IVA: +210.00
+// -15% IRPF: -150.00
+// Total: 1060.00
+```
+
+### Canary Islands IGIC
+
+```php
+// Canary Islands use IGIC instead of IVA
+$igic = new TaxBreakdown(
+    type: Tax::IGIC,
+    rate: 7  // Standard IGIC rate
+);
+```
+
+### Complex Example with Multiple Tax Rates
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Entities\{Line, TaxBreakdown};
+use PhpFacturae\Enums\Tax;
+
+$invoice = new Invoice(
+    // ... invoice parameters
+);
+
+// Line with standard IVA
+$invoice->addLine(
+    new Line(
+        description: 'Software License',
+        quantity: 1,
+        unitPrice: 1000.00,
+        taxes: [
+            new TaxBreakdown(Tax::IVA, 21),
+        ]
+    )
+);
+
+// Line with reduced IVA (books, food)
+$invoice->addLine(
+    new Line(
+        description: 'Technical Book',
+        quantity: 2,
+        unitPrice: 25.00,
+        taxes: [
+            new TaxBreakdown(Tax::IVA, 4),  // Super-reduced rate for books
+        ]
+    )
+);
+
+// Professional services with IVA and IRPF
+$invoice->addLine(
+    new Line(
+        description: 'Consulting Services',
+        quantity: 20,
+        unitPrice: 80.00,
+        taxes: [
+            new TaxBreakdown(Tax::IVA, 21),
+            new TaxBreakdown(Tax::IRPF, 15),
+        ]
+    )
+);
+```
+
+### Zero-Rated Tax
+
+```php
+// 0% IVA (export, intra-community supply, etc.)
+$zeroRatedVat = new TaxBreakdown(
+    type: Tax::IVA,
+    rate: 0
+);
+```

@@ -1,0 +1,337 @@
+---
+title: 'FACe Integration'
+description: 'Create invoices for Spanish public administration using DIR3 codes'
+icon: 'building-columns'
+---
+
+FACe (Punto General de Entrada de Facturas Electrónicas) is the Spanish government's centralized electronic invoicing platform. When invoicing public administration entities, you must include specific DIR3 codes that identify administrative centers.
+
+## What is DIR3?
+
+DIR3 is the directory of organizational units and offices of Spanish Public Administrations. Each administrative entity has unique codes that must be included in invoices:
+
+- **Office Code** (`01` - Oficina contable): Accounting office
+- **Managing Unit** (`02` - Órgano gestor): Managing body
+- **Processing Unit** (`03` - Unidad tramitadora): Processing unit
+- **Payment Office** (`04` - Órgano proponente): Proposing body/payment office
+
+<Info>
+DIR3 codes are mandatory for all invoices submitted to Spanish public administration entities through the FACe platform.
+</Info>
+
+## Adding Administrative Centers
+
+Use the `centre()` method on the buyer party to add DIR3 codes:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+$publicEntity = Party::company('Q2826004D', 'Ayuntamiento de Las Rozas')
+    ->address('Plaza Mayor 1', '28230', 'Las Rozas', 'Madrid')
+    ->centre(role: '01', code: 'L01282249')  // Accounting office
+    ->centre(role: '02', code: 'L01282249')  // Managing body
+    ->centre(role: '03', code: 'L01282249'); // Processing unit
+
+$invoice = Invoice::create('FAC-2024-001')
+    ->seller($seller)
+    ->buyer($publicEntity)
+    ->line('IT consulting services', price: 5000.00, vat: 21)
+    ->toXml();
+```
+
+## Role Type Codes
+
+The `role` parameter in `centre()` must be one of these values:
+
+| Code | Role | Description |
+|------|------|-------------|
+| `01` | Oficina contable | Accounting office - receives and processes invoices |
+| `02` | Órgano gestor | Managing body - responsible for the budget |
+| `03` | Unidad tramitadora | Processing unit - manages the purchase order |
+| `04` | Órgano proponente | Proposing body - initiates the transaction |
+
+<Note>
+At minimum, you must provide the accounting office (role `01`). Most public entities require all three codes: `01`, `02`, and `03`.
+</Note>
+
+## Finding DIR3 Codes
+
+Public administration entities provide their DIR3 codes:
+
+1. **Request from the entity**: The public body you're invoicing should provide their DIR3 codes
+2. **DIR3 official website**: Search at [dir3.redsara.es](https://dir3.redsara.es)
+3. **Purchase order**: DIR3 codes are often included in purchase orders
+4. **FACe documentation**: The entity's invoicing instructions will include codes
+
+<Warning>
+Using incorrect DIR3 codes will cause your invoice to be rejected by the FACe platform. Always verify codes with the public entity before submitting.
+</Warning>
+
+## Complete FACe Invoice Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+// Your company (seller)
+$seller = Party::company('B12345678', 'Tecnología y Servicios SL')
+    ->tradeName('TechServ')
+    ->address(
+        street: 'Calle Alcalá 45',
+        postalCode: '28014',
+        town: 'Madrid',
+        province: 'Madrid',
+        countryCode: 'ESP'
+    )
+    ->email('facturacion@techserv.es')
+    ->phone('+34 91 123 4567');
+
+// Public administration entity (buyer)
+$publicAdmin = Party::company(
+    taxNumber: 'Q2826004D',
+    name: 'Ayuntamiento de Las Rozas de Madrid'
+)
+    ->address(
+        street: 'Plaza Mayor, 1',
+        postalCode: '28230',
+        town: 'Las Rozas de Madrid',
+        province: 'Madrid',
+        countryCode: 'ESP'
+    )
+    ->email('contratacion@lasrozas.es')
+    // Add DIR3 codes for FACe
+    ->centre(role: '01', code: 'L01282249', name: 'Oficina Contable')
+    ->centre(role: '02', code: 'L01282249', name: 'Ayuntamiento')
+    ->centre(role: '03', code: 'L01282249', name: 'Unidad Contratación');
+
+$invoice = Invoice::create('FAC-2024-001')
+    ->series('FACE')
+    ->date('2024-03-15')
+    ->seller($seller)
+    ->buyer($publicAdmin)
+    ->description('IT consulting services - Contract CT-2024-001')
+    // Invoice lines
+    ->line(
+        description: 'IT infrastructure consulting',
+        price: 3500.00,
+        quantity: 20,
+        vat: 21,
+        unit: UnitOfMeasure::Hours
+    )
+    ->line(
+        description: 'Technical documentation',
+        price: 800.00,
+        vat: 21
+    )
+    // Payment terms (typically transfer for public admin)
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-04-15'
+    )
+    ->legalLiteral('Invoice issued for public administration under Contract CT-2024-001')
+    ->export('/var/facturae/FACE-2024-001.xsig');
+```
+
+## centre() Method Reference
+
+The `centre()` method is defined at `Party.php:101`:
+
+```php
+public function centre(
+    string $role,
+    string $code,
+    ?string $name = null
+): self
+```
+
+### Parameters
+
+- **role** (required): Role type code (`01`, `02`, `03`, or `04`)
+- **code** (required): DIR3 administrative center code
+- **name** (optional): Human-readable name of the center
+
+<Tip>
+The `name` parameter is optional but recommended. It makes the XML more readable and helps with debugging if there are issues with DIR3 codes.
+</Tip>
+
+## XML Output
+
+The administrative centers are exported to the XML at `Exporter/XmlExporter.php:104`:
+
+```xml
+<AdministrativeCentre>
+    <CentreCode>L01282249</CentreCode>
+    <RoleTypeCode>01</RoleTypeCode>
+    <Name>Oficina Contable</Name>
+</AdministrativeCentre>
+<AdministrativeCentre>
+    <CentreCode>L01282249</CentreCode>
+    <RoleTypeCode>02</RoleTypeCode>
+    <Name>Ayuntamiento</Name>
+</AdministrativeCentre>
+<AdministrativeCentre>
+    <CentreCode>L01282249</CentreCode>
+    <RoleTypeCode>03</RoleTypeCode>
+    <Name>Unidad Contratación</Name>
+</AdministrativeCentre>
+```
+
+## FACe-Specific Requirements
+
+When creating invoices for FACe submission:
+
+<Steps>
+
+### Include All Required DIR3 Codes
+
+At minimum: accounting office (`01`), managing body (`02`), and processing unit (`03`).
+
+### Use Complete Addresses
+
+Both seller and buyer must have complete, valid Spanish addresses with postal codes.
+
+### Specify Payment Terms
+
+Public administration typically requires transfer payment with explicit due dates.
+
+### Add Clear Descriptions
+
+Include contract numbers and clear service/product descriptions.
+
+### Attach Supporting Documents
+
+Consider attaching the purchase order or contract as proof.
+
+</Steps>
+
+## Multiple Administrative Centers
+
+Some complex public entities may require different codes for different roles:
+
+```php
+$ministry = Party::company('S2800679F', 'Ministerio de Economía')
+    ->address('Paseo de la Castellana 162', '28046', 'Madrid', 'Madrid')
+    ->centre(role: '01', code: 'E04990201', name: 'Oficina Contable Central')
+    ->centre(role: '02', code: 'E04990202', name: 'Dirección General')
+    ->centre(role: '03', code: 'E04990203', name: 'Subdirección Contratación')
+    ->centre(role: '04', code: 'E04990204', name: 'Órgano Proponente');
+```
+
+## Common Public Entity Types
+
+### Local Government (Ayuntamiento)
+
+```php
+->centre(role: '01', code: 'L01282249')
+->centre(role: '02', code: 'L01282249')
+->centre(role: '03', code: 'L01282249')
+```
+
+### Regional Government (Comunidad Autónoma)
+
+```php
+->centre(role: '01', code: 'A13002796')
+->centre(role: '02', code: 'A13002796')
+->centre(role: '03', code: 'A13002796')
+```
+
+### National Government (Ministerio)
+
+```php
+->centre(role: '01', code: 'E04990201')
+->centre(role: '02', code: 'E04990202')
+->centre(role: '03', code: 'E04990203')
+```
+
+### University
+
+```php
+->centre(role: '01', code: 'U00000038')
+->centre(role: '02', code: 'U00000038')
+->centre(role: '03', code: 'U00000038')
+```
+
+<Warning>
+These are example codes only. Always obtain the actual DIR3 codes from the specific public entity you're invoicing.
+</Warning>
+
+## Submitting to FACe
+
+After generating your invoice:
+
+1. **Generate the XML**: Use `toXml()` or `export()`
+2. **Sign the invoice**: If required by the entity (see [Digital Signatures](/guides/digital-signatures))
+3. **Validate**: Test with FACe validation tools
+4. **Submit**: Upload through FACe web portal or API
+5. **Monitor**: Track invoice status in FACe platform
+
+```php
+// Generate invoice
+$xml = $invoice->toXml();
+
+// Sign if required
+if ($requiresSignature) {
+    $signer = new Pkcs12Signer('/path/to/certificate.p12', 'password');
+    $invoice->sign($signer);
+    $xml = $invoice->toXml();
+}
+
+// Save for submission
+file_put_contents('/var/facturae/face-ready/FAC-2024-001.xsig', $xml);
+
+// Submit to FACe (implement using their API)
+$faceClient->submit($xml);
+```
+
+## Best Practices
+
+<Steps>
+
+### Verify DIR3 Codes
+
+Always confirm codes with the public entity before submitting invoices.
+
+### Include Contract References
+
+Reference the purchase order or contract number in the invoice description.
+
+### Use Descriptive Names
+
+Provide the `name` parameter for administrative centers to improve clarity.
+
+### Test with FACe Validator
+
+Use FACe's validation tools before production submission.
+
+### Keep Records
+
+Maintain a database of DIR3 codes for entities you frequently invoice.
+
+### Monitor Rejections
+
+Track and analyze any invoice rejections to identify common issues.
+
+</Steps>
+
+## Resources
+
+- [DIR3 Official Directory](https://dir3.redsara.es)
+- [FACe Platform](https://face.gob.es)
+- [FACe Documentation](https://face.gob.es/es/normativa-y-documentacion)
+- [FacturaE Specification](http://www.facturae.gob.es)
+
+## Storage Format
+
+Administrative centers are stored internally as an array in the `Party` class (`Party.php:33`):
+
+```php
+private array $centres = [];
+
+// Each center has the structure:
+[
+    'role' => '01',
+    'code' => 'L01282249',
+    'name' => 'Oficina Contable'
+]
+```

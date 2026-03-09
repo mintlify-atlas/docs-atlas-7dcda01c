@@ -1,0 +1,418 @@
+---
+title: 'Validation'
+description: 'Validate invoices before export to ensure compliance with FacturaE standards'
+icon: 'shield-check'
+---
+
+PHP FacturaE automatically validates invoices before generating XML to ensure they comply with the FacturaE standard and Spanish tax requirements. This prevents invalid invoices from being created and helps catch errors early.
+
+## Automatic Validation
+
+Validation happens automatically when you call `toXml()` or `export()`:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Exceptions\InvoiceValidationException;
+
+try {
+    $xml = Invoice::create('FAC-001')
+        ->seller($seller)
+        ->buyer($buyer)
+        ->line('Service', price: 1000.00, vat: 21)
+        ->toXml();
+} catch (InvoiceValidationException $e) {
+    // Validation failed
+    echo "Validation errors:\n";
+    foreach ($e->errors as $error) {
+        echo "- $error\n";
+    }
+}
+```
+
+<Info>
+The invoice is validated automatically before XML generation. You don't need to call validation manually.
+</Info>
+
+## InvoiceValidator Class
+
+The `InvoiceValidator` class performs all validation checks. It's called internally by `Invoice::toXml()` at `Invoice.php:420`:
+
+```php
+private function validate(): void
+{
+    $errors = (new InvoiceValidator())->validate($this);
+
+    if (!empty($errors)) {
+        throw new InvoiceValidationException($errors);
+    }
+}
+```
+
+## Validation Rules
+
+The validator checks these requirements (from `Validation/InvoiceValidator.php:12`):
+
+<Steps>
+
+### Seller is Required
+
+Every invoice must have a seller party.
+
+```php
+if ($invoice->getSeller() === null) {
+    $errors[] = 'Seller is required.';
+}
+```
+
+### Seller Address is Required
+
+The seller must have a complete address.
+
+```php
+if ($invoice->getSeller()->getAddress() === null) {
+    $errors[] = 'Seller address is required.';
+}
+```
+
+### Buyer is Required
+
+Every invoice must have a buyer party.
+
+```php
+if ($invoice->getBuyer() === null) {
+    $errors[] = 'Buyer is required.';
+}
+```
+
+### Buyer Address is Required
+
+The buyer must have a complete address.
+
+```php
+if ($invoice->getBuyer()->getAddress() === null) {
+    $errors[] = 'Buyer address is required.';
+}
+```
+
+### At Least One Line Required
+
+Invoices must contain at least one invoice line.
+
+```php
+if (empty($invoice->getLines())) {
+    $errors[] = 'At least one invoice line is required.';
+}
+```
+
+### Invoice Number Required
+
+The invoice must have a number.
+
+```php
+if ($invoice->getNumber() === '') {
+    $errors[] = 'Invoice number is required.';
+}
+```
+
+### Billing Period Validation
+
+If a billing period is specified, both start and end dates must be provided.
+
+```php
+if ($invoice->getBillingPeriodStart() !== null xor $invoice->getBillingPeriodEnd() !== null) {
+    $errors[] = 'Billing period requires both start and end dates.';
+}
+```
+
+### Billing Period Date Order
+
+The start date must be before the end date.
+
+```php
+if ($invoice->getBillingPeriodStart() > $invoice->getBillingPeriodEnd()) {
+    $errors[] = 'Billing period start date must be before end date.';
+}
+```
+
+</Steps>
+
+## InvoiceValidationException
+
+When validation fails, an `InvoiceValidationException` is thrown with all validation errors:
+
+```php
+use PhpFacturae\Exceptions\InvoiceValidationException;
+
+try {
+    $invoice->toXml();
+} catch (InvoiceValidationException $e) {
+    // Access all errors
+    $errors = $e->errors;
+    
+    // Get formatted message
+    echo $e->getMessage();
+    // Output: "Invoice validation failed: Seller is required, At least one invoice line is required"
+}
+```
+
+The exception is defined at `Exceptions/InvoiceValidationException.php:9`:
+
+```php
+final class InvoiceValidationException extends RuntimeException
+{
+    /** @param string[] $errors */
+    public function __construct(
+        public readonly array $errors,
+    ) {
+        parent::__construct(
+            'Invoice validation failed: ' . implode(', ', $errors)
+        );
+    }
+}
+```
+
+<Note>
+The `errors` property contains an array of all validation error messages, making it easy to display them to users or log them.
+</Note>
+
+## Common Validation Errors
+
+Here are the most common validation errors and how to fix them:
+
+### Missing Seller
+
+```php
+// ❌ Error: Seller is required
+$invoice = Invoice::create('FAC-001')
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21);
+
+// ✅ Fixed
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)  // Add seller
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21);
+```
+
+### Missing Address
+
+```php
+// ❌ Error: Seller address is required
+$seller = Party::company('B12345678', 'Company SL');
+// Missing address!
+
+// ✅ Fixed
+$seller = Party::company('B12345678', 'Company SL')
+    ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid');
+```
+
+### Missing Invoice Lines
+
+```php
+// ❌ Error: At least one invoice line is required
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer);
+// No lines!
+
+// ✅ Fixed
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21);  // Add at least one line
+```
+
+### Incomplete Billing Period
+
+```php
+// ❌ Error: Billing period requires both start and end dates
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->billingPeriod('2024-01-01', null);  // Missing end date!
+
+// ✅ Fixed
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->billingPeriod('2024-01-01', '2024-01-31');  // Both dates provided
+```
+
+### Invalid Date Order
+
+```php
+// ❌ Error: Billing period start date must be before end date
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->billingPeriod('2024-12-31', '2024-01-01');  // End before start!
+
+// ✅ Fixed
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->billingPeriod('2024-01-01', '2024-12-31');  // Correct order
+```
+
+## XSD Schema Validation
+
+PHP FacturaE generates XML that complies with the official FacturaE 3.2.x XSD schema. The schema version is configurable:
+
+```php
+use PhpFacturae\Enums\Schema;
+
+$invoice = Invoice::create('FAC-001')
+    ->schema(Schema::V3_2_2)  // Default
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 100, vat: 21)
+    ->toXml();
+```
+
+Available schemas:
+- `Schema::V3_2` - FacturaE 3.2
+- `Schema::V3_2_1` - FacturaE 3.2.1
+- `Schema::V3_2_2` - FacturaE 3.2.2 (default)
+
+Each schema has a corresponding XML namespace defined at `Enums/Schema.php:13`:
+
+```php
+public function xmlNamespace(): string
+{
+    return match ($this) {
+        self::V3_2   => 'http://www.facturae.gob.es/formato/Versiones/Facturaev3_2.xml',
+        self::V3_2_1 => 'http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_1.xml',
+        self::V3_2_2 => 'http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml',
+    };
+}
+```
+
+<Warning>
+While PHP FacturaE validates the invoice structure, it does not perform full XSD schema validation against the official FacturaE XSD files. For complete XSD validation, use external tools or the FACe validator.
+</Warning>
+
+## FACe Validator Integration
+
+For invoices submitted to the Spanish public administration via FACe, you should validate against the FACe validator service:
+
+```php
+// Generate the invoice
+$xml = $invoice->toXml();
+
+// Submit to FACe for validation
+// (You'll need to implement FACe API integration separately)
+$faceValidator = new FaceValidatorClient();
+$validationResult = $faceValidator->validate($xml);
+
+if (!$validationResult->isValid()) {
+    foreach ($validationResult->getErrors() as $error) {
+        echo "FACe validation error: $error\n";
+    }
+}
+```
+
+<Tip>
+The FACe platform (Punto General de Entrada de Facturas Electrónicas) has additional validation requirements beyond the standard FacturaE format. Always test your invoices with the FACe validator before production use.
+</Tip>
+
+## Complete Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Exceptions\InvoiceValidationException;
+
+function createValidInvoice(): string
+{
+    try {
+        $seller = Party::company('B12345678', 'Mi Empresa SL')
+            ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid')
+            ->email('info@miempresa.es');
+
+        $buyer = Party::company('A87654321', 'Cliente SA')
+            ->address('Gran Via 50', '28013', 'Madrid', 'Madrid')
+            ->email('admin@cliente.es');
+
+        $invoice = Invoice::create('FAC-2024-001')
+            ->date('2024-03-15')
+            ->seller($seller)
+            ->buyer($buyer)
+            ->line('Consulting services', price: 2000.00, vat: 21)
+            ->line('Travel expenses', price: 150.00, vat: 21)
+            ->transferPayment(
+                iban: 'ES91 2100 0418 4502 0005 1332',
+                dueDate: '2024-04-15'
+            );
+
+        // Validation happens automatically here
+        return $invoice->toXml();
+
+    } catch (InvoiceValidationException $e) {
+        // Handle validation errors
+        error_log('Invoice validation failed:');
+        foreach ($e->errors as $error) {
+            error_log("  - $error");
+        }
+        throw $e;
+    }
+}
+```
+
+## Best Practices
+
+<Steps>
+
+### Always Handle Validation Errors
+
+Wrap `toXml()` and `export()` calls in try-catch blocks to handle validation failures gracefully.
+
+### Validate Early in Development
+
+Test invoice generation early to catch validation issues before they reach production.
+
+### Provide Complete Data
+
+Ensure all required fields (seller, buyer, addresses, lines) are populated before generating XML.
+
+### Test with Real Data
+
+Use realistic invoice data during testing to catch edge cases and validation issues.
+
+### Log Validation Errors
+
+Always log validation errors for debugging and monitoring purposes.
+
+</Steps>
+
+## Testing Validation
+
+From the test suite at `tests/InvoiceTest.php:217`:
+
+```php
+public function test_fails_without_seller(): void
+{
+    $this->expectException(InvoiceValidationException::class);
+
+    Invoice::create('FAC-001')
+        ->buyer(Party::person('00000000A', 'J', 'G')
+            ->address('C/', '28001', 'Madrid', 'Madrid'))
+        ->line('Test', price: 100, vat: 21)
+        ->toXml();
+}
+
+public function test_fails_without_lines(): void
+{
+    $this->expectException(InvoiceValidationException::class);
+
+    Invoice::create('FAC-001')
+        ->seller(Party::company('A00000000', 'T')
+            ->address('C/', '28001', 'Madrid', 'Madrid'))
+        ->buyer(Party::person('00000000A', 'J', 'G')
+            ->address('C/', '28001', 'Madrid', 'Madrid'))
+        ->toXml();
+}
+```

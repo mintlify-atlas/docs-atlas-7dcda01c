@@ -1,0 +1,132 @@
+---
+title: PaymentMethod
+description: Payment method codes for Spanish invoicing
+---
+
+The `PaymentMethod` enum represents all payment methods supported by the FacturaE 3.2.2 XSD specification. Each payment method has a unique code used in the XML output.
+
+## Enum Cases
+
+The following table lists all 19 payment methods available:
+
+| Case | Code | Description | Requires IBAN |
+|------|------|-------------|---------------|
+| `Cash` | `01` | Cash payment | No |
+| `DirectDebit` | `02` | Direct debit from bank account | Yes |
+| `Receipt` | `03` | Payment receipt | No |
+| `Transfer` | `04` | Bank transfer | Yes |
+| `AcceptedBillOfExchange` | `05` | Accepted bill of exchange | Optional |
+| `DocumentaryCredit` | `06` | Documentary credit | Optional |
+| `ContractAward` | `07` | Contract award | No |
+| `BillOfExchange` | `08` | Bill of exchange | Optional |
+| `TransferablePromissory` | `09` | Transferable promissory note | Optional |
+| `PromissoryNote` | `10` | Promissory note | Optional |
+| `Cheque` | `11` | Cheque | No |
+| `Reimbursement` | `12` | Reimbursement | No |
+| `Special` | `13` | Special payment method | No |
+| `Setoff` | `14` | Payment by setoff/compensation | No |
+| `Postgiro` | `15` | Postgiro | Optional |
+| `CertifiedCheque` | `16` | Certified cheque | No |
+| `BankersDraft` | `17` | Banker's draft | Optional |
+| `CashOnDelivery` | `18` | Cash on delivery | No |
+| `Card` | `19` | Credit/debit card | No |
+
+## Usage Examples
+
+### Cash Payment
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice = new Invoice();
+// ... configure invoice
+
+$invoice->setPaymentMethod(PaymentMethod::Cash);
+```
+
+### Bank Transfer with IBAN
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->setPaymentMethod(PaymentMethod::Transfer);
+$invoice->setPaymentIban('ES9121000418450200051332');
+```
+
+### Direct Debit
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->setPaymentMethod(PaymentMethod::DirectDebit);
+$invoice->setPaymentIban('ES9121000418450200051332');
+$invoice->setPaymentMandate('MANDATE-123456');
+```
+
+### Card Payment
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->setPaymentMethod(PaymentMethod::Card);
+// No IBAN required for card payments
+```
+
+### Multiple Payment Installments
+
+```php
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice->setPaymentMethod(PaymentMethod::Transfer);
+$invoice->setPaymentIban('ES9121000418450200051332');
+
+// Add payment installments
+$invoice->addPaymentInstallment(
+    dueDate: new DateTime('2024-03-01'),
+    amount: 500.00
+);
+
+$invoice->addPaymentInstallment(
+    dueDate: new DateTime('2024-04-01'),
+    amount: 500.00
+);
+```
+
+## Payment Methods Requiring IBAN
+
+The following payment methods typically require an IBAN to be specified:
+
+- **DirectDebit** (`02`) - Always required
+- **Transfer** (`04`) - Always required
+
+The following payment methods may optionally include an IBAN:
+
+- AcceptedBillOfExchange
+- DocumentaryCredit
+- BillOfExchange
+- TransferablePromissory
+- PromissoryNote
+- Postgiro
+- BankersDraft
+
+## Common Payment Methods in Spain
+
+The most frequently used payment methods in Spain are:
+
+1. **Transfer** (`04`) - Bank transfers are the most common B2B payment method
+2. **DirectDebit** (`02`) - Common for recurring payments and subscriptions
+3. **Card** (`19`) - Common for B2C transactions
+4. **Cash** (`01`) - Used for small amounts and retail
+
+## Notes
+
+- When using `Transfer` or `DirectDebit`, you must provide a valid IBAN
+- IBAN validation follows the Spanish format: ESnn (ES + 2 check digits + 20 account digits)
+- Payment methods are defined by the Spanish Tax Agency (AEAT)
+- The payment method code appears in the XML output's `PaymentMeansType` field
+
+## See Also
+
+- [Invoice::setPaymentMethod()](/api/classes/invoice#setpaymentmethod) - Setting payment method
+- [Invoice::setPaymentIban()](/api/classes/invoice#setpaymentiban) - Setting payment IBAN
+- [Invoice::addPaymentInstallment()](/api/classes/invoice#addpaymentinstallment) - Adding payment installments

@@ -1,97 +1,131 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "PHP FacturaE"
+description: "Generate, validate and sign Spanish FacturaE electronic invoices with a fluent, type-safe PHP API"
 ---
 
-## Setting up
+<div style={{
+  background: 'linear-gradient(135deg, #94cb04 0%, #545454 100%)',
+  borderRadius: '8px',
+  padding: '3rem 2rem',
+  marginBottom: '2rem',
+  color: 'white'
+}}>
+  <h1 style={{ fontSize: '3rem', fontWeight: '700', marginBottom: '1rem', color: 'white' }}>
+    PHP FacturaE
+  </h1>
+  <p style={{ fontSize: '1.25rem', marginBottom: '1.5rem', color: 'white', opacity: 0.95 }}>
+    Generate, validate and sign Spanish FacturaE electronic invoices with a fluent, type-safe PHP API
+  </p>
+  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+    <a href="/quickstart" style={{
+      background: '#ffffff',
+      color: '#1a1a1a',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      fontWeight: '600',
+      textDecoration: 'none',
+      display: 'inline-block'
+    }}>
+      Get Started
+    </a>
+    <a href="https://github.com/MarioDevv/php-facturae" style={{
+      background: 'transparent',
+      color: '#ffffff',
+      padding: '0.75rem 1.5rem',
+      borderRadius: '6px',
+      fontWeight: '600',
+      textDecoration: 'none',
+      display: 'inline-block',
+      border: '2px solid #ffffff'
+    }}>
+      View on GitHub
+    </a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Quick Example
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Create and sign a complete FacturaE invoice with just a few lines of code:
 
-## Make it yours
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Signer;
 
-Design a docs site that looks great and empowers your users.
+Invoice::create('FAC-001')
+    ->series('A')
+    ->date('2025-03-01')
+    ->seller(Party::company('B12345678', 'Mi Empresa S.L.')
+        ->address('C/ Mayor 10', '28013', 'Madrid', 'Madrid'))
+    ->buyer(Party::person('12345678Z', 'Laura', 'Gómez', 'Ruiz')
+        ->address('C/ Sol 3', '28012', 'Madrid', 'Madrid'))
+    ->line('Diseño logotipo', price: 450.00, vat: 21)
+    ->transferPayment(iban: 'ES91 2100 0418 4502 0005 1332', dueDate: '2025-03-31')
+    ->sign(Signer::pfx('certificado.pfx', 'password'))
+    ->export('factura.xsig');
+```
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Fluent API" icon="wand-magic-sparkles">
+    Type-safe enums and fluent builders eliminate arrays and magic strings
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="XAdES-EPES Signing" icon="signature">
+    Digital signatures with optional TSA timestamping included
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Comprehensive Tax Support" icon="percent">
+    29 tax types including VAT, IRPF, IGIC, and surcharges
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Schema Validation" icon="check-circle">
+    Validates against official FacturaE 3.2.x XSD schemas
   </Card>
-</Columns>
+  <Card title="Zero Dependencies" icon="feather">
+    Only standard PHP extensions required - no external packages
+  </Card>
+  <Card title="FACe Ready" icon="landmark">
+    Full support for Spanish public administration requirements
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## Get Started
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via Composer and configure extensions
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first invoice in minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/invoice">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Core Concepts
 
-## Need inspiration?
+<CardGroup cols={2}>
+  <Card title="Invoice Creation" icon="file-invoice" href="/core/invoice">
+    Learn the fluent API for building invoices
+  </Card>
+  <Card title="Parties & Addresses" icon="users" href="/core/parties">
+    Define sellers, buyers, and administrative centers
+  </Card>
+  <Card title="Lines & Taxes" icon="calculator" href="/core/lines-and-taxes">
+    Configure invoice lines with multiple tax types
+  </Card>
+  <Card title="Payment Methods" icon="credit-card" href="/core/payments">
+    Set up payments with 19 available methods
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Why PHP FacturaE?
+
+<Note>
+**Modern alternative to legacy libraries** — PHP FacturaE provides a type-safe, fluent API as a modern alternative to array-based configuration, with support for all FacturaE 3.2.x versions.
+</Note>
+
+- **~0.2 ms** per simple invoice, ~22 ms for 100 invoices
+- **29 tax types** · **19 payment methods** · **36 units of measure**
+- **22 correction reasons** for rectificative invoices
+- **PKCS#12 and PEM** signature support with TSA timestamping

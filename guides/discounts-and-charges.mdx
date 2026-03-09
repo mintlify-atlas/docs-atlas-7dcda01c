@@ -1,0 +1,289 @@
+---
+title: 'Discounts and Charges'
+description: 'Apply invoice-level discounts and charges to adjust totals'
+icon: 'percent'
+---
+
+PHP FacturaE supports both line-level discounts and invoice-level general discounts and charges. This guide covers invoice-level adjustments that apply to the total invoice amount.
+
+## General Discounts
+
+Apply discounts at the invoice level using the `generalDiscount()` method:
+
+```php
+use PhpFacturae\Invoice;
+
+$invoice = Invoice::create('FAC-001')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Product A', price: 100.00, vat: 21)
+    ->line('Product B', price: 200.00, vat: 21)
+    ->generalDiscount('VIP customer discount', amount: 50.00)
+    ->toXml();
+```
+
+<Info>
+General discounts are applied to the gross invoice total before tax calculations, reducing the taxable base.
+</Info>
+
+## General Charges
+
+Add additional charges at the invoice level using the `generalCharge()` method:
+
+```php
+$invoice = Invoice::create('FAC-002')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Service', price: 500.00, vat: 21)
+    ->generalCharge('Shipping costs', amount: 15.00)
+    ->toXml();
+```
+
+<Note>
+Charges increase the taxable base, so taxes are calculated on the total including charges.
+</Note>
+
+## Fixed Amount vs Percentage Rate
+
+You can specify discounts and charges either as a fixed amount or as a percentage rate.
+
+### Fixed Amount
+
+```php
+// Discount of €50
+->generalDiscount('Early payment discount', amount: 50.00)
+
+// Charge of €15
+->generalCharge('Handling fee', amount: 15.00)
+```
+
+### Percentage Rate
+
+```php
+// 10% discount on gross total
+->generalDiscount('Volume discount', rate: 10)
+
+// 5% surcharge
+->generalCharge('Rush order fee', rate: 5)
+```
+
+<Steps>
+
+### How Rates are Calculated
+
+1. Calculate the gross total of all invoice lines
+2. Apply the rate percentage to the gross total
+3. The calculated amount is used as the discount/charge
+4. Adjust the taxable base accordingly
+5. Calculate taxes on the adjusted base
+
+</Steps>
+
+## Multiple Discounts and Charges
+
+You can apply multiple discounts and charges to the same invoice:
+
+```php
+$invoice = Invoice::create('FAC-003')
+    ->seller($seller)
+    ->buyer($buyer)
+    ->line('Consulting', price: 1000.00, vat: 21)
+    ->line('Materials', price: 300.00, vat: 21)
+    // Apply multiple discounts
+    ->generalDiscount('Early payment', rate: 5)
+    ->generalDiscount('Loyalty program', amount: 25.00)
+    // Add charges
+    ->generalCharge('Shipping', amount: 20.00)
+    ->generalCharge('Insurance', rate: 2)
+    ->toXml();
+```
+
+<Warning>
+When using both rate and amount parameters together, the amount parameter takes precedence. Only specify one per discount/charge.
+</Warning>
+
+## How Discounts Affect Total Calculation
+
+Here's how general discounts and charges are applied:
+
+```php
+// Example calculation
+$invoice = Invoice::create('FAC-004')
+    ->line('Item 1', price: 100.00, vat: 21)  // €100
+    ->line('Item 2', price: 200.00, vat: 21)  // €200
+    ->generalDiscount('Discount', amount: 30.00)
+    ->generalCharge('Shipping', amount: 10.00);
+
+// Gross total: €300.00
+// After discount: €300.00 - €30.00 = €270.00
+// After charge: €270.00 + €10.00 = €280.00
+// Taxable base: €280.00
+// VAT (21%): €58.80
+// Invoice total: €338.80
+```
+
+## Complete Example
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+$seller = Party::company('B12345678', 'Mi Empresa S.L.')
+    ->address('Calle Mayor 1', '28001', 'Madrid', 'Madrid');
+
+$buyer = Party::company('A87654321', 'Cliente Premium S.A.')
+    ->address('Gran Via 10', '28013', 'Madrid', 'Madrid');
+
+$invoice = Invoice::create('FAC-2024-0015')
+    ->series('A')
+    ->date('2024-03-15')
+    ->seller($seller)
+    ->buyer($buyer)
+    // Invoice lines
+    ->line('Web development', price: 2000.00, vat: 21)
+    ->line('Hosting (annual)', price: 120.00, vat: 21)
+    ->line('SSL certificate', price: 50.00, vat: 21)
+    // Apply 10% early payment discount
+    ->generalDiscount('10% early payment discount', rate: 10)
+    // Add shipping charge
+    ->generalCharge('Express delivery', amount: 25.00)
+    // Payment terms
+    ->transferPayment(
+        iban: 'ES91 2100 0418 4502 0005 1332',
+        dueDate: '2024-04-15'
+    )
+    ->toXml();
+
+// Calculation breakdown:
+// Lines total: €2,170.00
+// 10% discount: -€217.00
+// Shipping: +€25.00
+// Taxable base: €1,978.00
+// VAT 21%: €415.38
+// Total: €2,393.38
+```
+
+## Method Reference
+
+Both methods are defined in `Invoice.php`:
+
+### generalDiscount()
+
+```php
+public function generalDiscount(
+    string $reason,
+    ?float $rate = null,
+    ?float $amount = null
+): self
+```
+
+Defined at `Invoice.php:358`
+
+### generalCharge()
+
+```php
+public function generalCharge(
+    string $reason,
+    ?float $rate = null,
+    ?float $amount = null
+): self
+```
+
+Defined at `Invoice.php:374`
+
+### Parameters
+
+- **reason** (required): Description of the discount/charge
+- **rate**: Percentage rate to apply (e.g., `10` for 10%)
+- **amount**: Fixed amount in invoice currency
+
+<Tip>
+Provide descriptive reasons for discounts and charges. These appear on the invoice and help explain the adjustments to your customers and tax authorities.
+</Tip>
+
+## Line-Level Discounts
+
+For discounts on individual lines, use the `discount` parameter in the `line()` method:
+
+```php
+->line(
+    description: 'Product with line discount',
+    price: 100.00,
+    vat: 21,
+    discount: 10  // 10% discount on this line only
+)
+```
+
+See [Invoice Lines](/api-reference/invoice-lines) for more details on line-level discounts.
+
+## Common Scenarios
+
+### Early Payment Discount
+
+```php
+->generalDiscount('Early payment discount - 5%', rate: 5)
+```
+
+### Volume-Based Discount
+
+```php
+->generalDiscount('Volume discount - orders over €1000', amount: 100.00)
+```
+
+### Shipping and Handling
+
+```php
+->generalCharge('Shipping and handling', amount: 15.50)
+```
+
+### Insurance Fee
+
+```php
+->generalCharge('Insurance fee', rate: 2)
+```
+
+### Combined Discounts
+
+```php
+->generalDiscount('Seasonal discount', rate: 10)
+->generalDiscount('Loyalty points redemption', amount: 50.00)
+```
+
+## Best Practices
+
+<Steps>
+
+### Be Explicit
+
+Use clear, descriptive reasons that explain why the discount or charge was applied.
+
+### Use Rates for Proportional Adjustments
+
+When the adjustment should scale with the invoice amount, use rates instead of fixed amounts.
+
+### Document Special Arrangements
+
+For negotiated discounts, reference the agreement in the description.
+
+### Validate Totals
+
+Always verify that the final total matches your expectations, especially with multiple adjustments.
+
+</Steps>
+
+## Storage Format
+
+Internally, discounts and charges are stored as arrays in the Invoice class:
+
+```php
+// From Invoice.php:52-55
+private array $generalDiscounts = [];
+private array $generalCharges = [];
+
+// Each entry has the structure:
+[
+    'reason' => 'Discount description',
+    'rate' => 10.0,  // optional
+    'amount' => 50.0
+]
+```

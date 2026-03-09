@@ -1,0 +1,493 @@
+---
+title: "Split Payments"
+description: "Configure multiple payment installments with different due dates and intervals"
+---
+
+## Overview
+
+Large invoices can be split into multiple payment installments. This guide shows you how to:
+
+- Use the `splitPayments()` method
+- Configure multiple installments with different due dates
+- Set custom interval periods between payments
+- Understand how amounts are automatically divided and rounded
+
+## Basic Split Payments Example
+
+Here's a complete example with 3 monthly installments:
+
+```php
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+use PhpFacturae\Enums\PaymentMethod;
+
+$invoice = Invoice::create('FAC-008')
+    ->series('F')
+    ->date('2024-10-01')
+    ->seller(
+        Party::company('B76123456', 'Atlantic Systems S.L.')
+            ->tradeName('Atsys')
+            ->address(
+                'C/ Triana, 52',
+                '35002',
+                'Las Palmas de Gran Canaria',
+                'Las Palmas',
+                'ESP'
+            )
+            ->email('info@atsys.es')
+            ->phone('928000000')
+            ->website('https://atsys.es')
+    )
+    ->buyer(
+        Party::company('A28000001', 'Cliente Demo S.L.')
+            ->address(
+                'C/ Gran Via, 1',
+                '28013',
+                'Madrid',
+                'Madrid',
+                'ESP'
+            )
+            ->email('admin@clientedemo.es')
+    )
+    ->line('Desarrollo aplicacion movil', price: 6000.00, igic: 7)
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 3,
+        firstDueDate: '2024-11-01',
+        intervalDays: 30,
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->export('factura-pagos-fraccionados.xsig');
+```
+
+<Info>
+**Total invoice**: €6,000 + 7% IGIC = €6,420
+
+**Split into 3 payments**:
+- Payment 1 (Nov 1): €2,140
+- Payment 2 (Dec 1): €2,140  
+- Payment 3 (Jan 1): €2,140
+</Info>
+
+## How Amount Division Works
+
+<Steps>
+  <Step title="Calculate Total">
+    The library first calculates the invoice total including all taxes:
+
+    ```
+    Base: €6,000.00
+    IGIC (7%): €420.00
+    ───────────────────
+    Total: €6,420.00
+    ```
+  </Step>
+
+  <Step title="Divide Equally">
+    The total is divided by the number of installments:
+
+    ```
+    €6,420.00 ÷ 3 = €2,140.00 per installment
+    ```
+  </Step>
+
+  <Step title="Handle Rounding">
+    If division results in decimals, the last installment receives the remainder:
+
+    ```
+    Total: €1,000.00 ÷ 3
+    Payment 1: €333.33
+    Payment 2: €333.33
+    Payment 3: €333.34  ← Gets the extra cent
+    ```
+  </Step>
+
+  <Step title="Generate Due Dates">
+    Each installment gets a due date based on the interval:
+
+    ```
+    First due date: 2024-11-01
+    Interval: 30 days
+    
+    Payment 1: 2024-11-01
+    Payment 2: 2024-12-01 (30 days later)
+    Payment 3: 2025-01-01 (60 days later)
+    ```
+  </Step>
+</Steps>
+
+## Quarterly Payments
+
+For larger projects with quarterly payments:
+
+```php
+Invoice::create('FAC-QUARTERLY-001')
+    ->date('2024-01-15')
+    ->seller(
+        Party::company('A00000000', 'Consulting Pro S.L.')
+            ->address('C/ Serrano, 45', '28001', 'Madrid', 'Madrid')
+            ->email('billing@consultingpro.es')
+    )
+    ->buyer(
+        Party::company('B28000001', 'Enterprise Corp S.A.')
+            ->address('Paseo de la Castellana, 100', '28046', 'Madrid', 'Madrid')
+            ->email('accounts@enterprise.com')
+    )
+    ->line('Consultoria estrategica anual', price: 60000.00, vat: 21)
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 4,
+        firstDueDate: '2024-03-31',
+        intervalDays: 90,  // Quarterly (approx 3 months)
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->legalLiteral('Proyecto anual con pagos trimestrales.')
+    ->export('factura-trimestral.xsig');
+```
+
+<Note>
+**Total**: €60,000 + 21% VAT = €72,600
+
+**4 quarterly payments**:
+- Q1 (Mar 31, 2024): €18,150
+- Q2 (Jun 29, 2024): €18,150
+- Q3 (Sep 27, 2024): €18,150
+- Q4 (Dec 26, 2024): €18,150
+</Note>
+
+## Biweekly Payments
+
+For short-term projects with biweekly payments:
+
+```php
+Invoice::create('FAC-BIWEEKLY-001')
+    ->date('2024-11-01')
+    ->seller(
+        Party::person('12345678Z', 'Maria', 'Lopez')
+            ->address('C/ Goya, 10', '28001', 'Madrid', 'Madrid')
+            ->email('maria@freelance.com')
+    )
+    ->buyer(
+        Party::company('A87654321', 'Startup SaaS S.L.')
+            ->address('C/ Fuencarral, 50', '28004', 'Madrid', 'Madrid')
+    )
+    ->line('Desarrollo frontend (160 horas)', price: 85.00, quantity: 160, vat: 21, irpf: 15)
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 4,
+        firstDueDate: '2024-11-15',
+        intervalDays: 15,  // Biweekly
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->export('factura-quincenal.xsig');
+```
+
+<Tip>
+**Calculation with IRPF**:
+- Base: €13,600 (160h × €85)
+- VAT 21%: +€2,856
+- IRPF 15%: -€2,040
+- **Total**: €14,416
+- **Per installment**: €3,604 (every 15 days)
+</Tip>
+
+## Weekly Payments
+
+For very short-term contracts:
+
+```php
+Invoice::create('FAC-WEEKLY-001')
+    ->date('2024-12-01')
+    ->seller(
+        Party::person('87654321A', 'Carlos', 'Rodriguez')
+            ->address('C/ Alcala, 200', '28028', 'Madrid', 'Madrid')
+            ->email('carlos@contractor.com')
+    )
+    ->buyer(
+        Party::company('B11223344', 'Events Agency S.L.')
+            ->address('C/ Velazquez, 30', '28001', 'Madrid', 'Madrid')
+    )
+    ->line('Servicios audiovisuales evento (4 semanas)', price: 3200.00, vat: 21, irpf: 15)
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 4,
+        firstDueDate: '2024-12-08',
+        intervalDays: 7,  // Weekly
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->legalLiteral('Pagos semanales por servicios profesionales.')
+    ->export('factura-semanal.xsig');
+```
+
+## Different Payment Methods
+
+Split payments work with any payment method:
+
+<CodeGroup>
+
+```php Bank Transfer
+->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2024-11-01',
+    intervalDays: 30,
+    iban: 'ES91 2100 0418 4502 0005 1332'
+)
+```
+
+```php Direct Debit
+->splitPayments(
+    method: PaymentMethod::DirectDebit,
+    installments: 6,
+    firstDueDate: '2024-11-01',
+    intervalDays: 30,
+    iban: 'ES80 0049 1500 0512 3456 7890'
+)
+```
+
+```php Promissory Note
+->splitPayments(
+    method: PaymentMethod::PromissoryNote,
+    installments: 3,
+    firstDueDate: '2024-12-01',
+    intervalDays: 90  // Quarterly notes
+)
+```
+
+</CodeGroup>
+
+<Warning>
+**IBAN requirement**: `Transfer` and `DirectDebit` payment methods require an IBAN. Other methods like `PromissoryNote`, `Card`, or `Cash` don't need it.
+
+```php
+// ✅ CORRECT
+->splitPayments(
+    method: PaymentMethod::Card,
+    installments: 3,
+    firstDueDate: '2024-11-01',
+    intervalDays: 30
+)
+
+// ❌ WRONG - Transfer needs IBAN
+->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 3,
+    firstDueDate: '2024-11-01',
+    intervalDays: 30
+)
+```
+</Warning>
+
+## Mixed Interval Example
+
+For complex payment schedules (30-60-90 days), use manual payment configuration:
+
+```php
+use PhpFacturae\Entities\Payment;
+use PhpFacturae\Enums\PaymentMethod;
+
+Invoice::create('FAC-CUSTOM-SCHEDULE-001')
+    ->date('2024-12-01')
+    ->seller(
+        Party::company('A00000000', 'Premium Services S.L.')
+            ->address('C/ Mayor, 50', '28013', 'Madrid', 'Madrid')
+    )
+    ->buyer(
+        Party::company('B28000001', 'Big Client S.A.')
+            ->address('Av. Europa, 10', '28108', 'Alcobendas', 'Madrid')
+    )
+    ->line('Proyecto premium', price: 30000.00, vat: 21)
+    ->payment(
+        new Payment(
+            method: PaymentMethod::Transfer,
+            dueDate: new \DateTimeImmutable('2024-12-30'),  // 30 days
+            amount: 12100.00,  // 33.33%
+            iban: 'ES91 2100 0418 4502 0005 1332',
+            installmentIndex: 0,
+            totalInstallments: 3
+        )
+    )
+    ->payment(
+        new Payment(
+            method: PaymentMethod::Transfer,
+            dueDate: new \DateTimeImmutable('2025-01-30'),  // 60 days
+            amount: 12100.00,  // 33.33%
+            iban: 'ES91 2100 0418 4502 0005 1332',
+            installmentIndex: 1,
+            totalInstallments: 3
+        )
+    )
+    ->payment(
+        new Payment(
+            method: PaymentMethod::Transfer,
+            dueDate: new \DateTimeImmutable('2025-03-01'),  // 90 days
+            amount: 12100.00,  // 33.34% (remainder)
+            iban: 'ES91 2100 0418 4502 0005 1332',
+            installmentIndex: 2,
+            totalInstallments: 3
+        )
+    )
+    ->export('factura-custom-schedule.xsig');
+```
+
+<Info>
+For standard intervals, use `splitPayments()`. For custom schedules, create `Payment` objects manually.
+</Info>
+
+## Large Projects (12 Months)
+
+Annual contracts with monthly payments:
+
+```php
+Invoice::create('FAC-ANNUAL-001')
+    ->date('2024-01-01')
+    ->billingPeriod(from: '2024-01-01', to: '2024-12-31')
+    ->seller(
+        Party::company('B76123456', 'SaaS Platform S.L.')
+            ->address('C/ Castellana, 200', '28046', 'Madrid', 'Madrid')
+    )
+    ->buyer(
+        Party::company('A28000001', 'Enterprise Client S.A.')
+            ->address('C/ Velazquez, 100', '28006', 'Madrid', 'Madrid')
+    )
+    ->line('Licencia Enterprise anual (100 usuarios)', price: 24000.00, vat: 21)
+    ->line('Soporte premium 24/7', price: 12000.00, vat: 21)
+    ->splitPayments(
+        method: PaymentMethod::DirectDebit,
+        installments: 12,
+        firstDueDate: '2024-01-31',
+        intervalDays: 30,  // Monthly
+        iban: 'ES80 0049 1500 0512 3456 7890'
+    )
+    ->legalLiteral(
+        'Contrato anual 2024 con domiciliacion bancaria mensual. '
+        . 'Renovacion automatica salvo cancelacion.'
+    )
+    ->export('factura-anual-mensual.xsig');
+```
+
+<Note>
+**Total**: €36,000 + 21% VAT = €43,560
+
+**12 monthly payments**: €3,630/month via direct debit
+</Note>
+
+## Split Payments with Discount
+
+Apply discounts before splitting:
+
+```php
+Invoice::create('FAC-DISCOUNT-SPLIT-001')
+    ->date('2024-12-01')
+    ->seller(
+        Party::company('A00000000', 'Software House S.L.')
+            ->address('C/ Goya, 100', '28009', 'Madrid', 'Madrid')
+    )
+    ->buyer(
+        Party::company('B28000001', 'Startup Tech S.L.')
+            ->address('C/ Serrano, 50', '28001', 'Madrid', 'Madrid')
+    )
+    ->line(
+        'Desarrollo software',
+        price: 10000.00,
+        quantity: 1,
+        vat: 21,
+        discount: 10  // 10% discount
+    )
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 3,
+        firstDueDate: '2025-01-01',
+        intervalDays: 30,
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->legalLiteral('Descuento 10% por pronto pago aplicado.')
+    ->export('factura-descuento-fraccionada.xsig');
+```
+
+<Tip>
+**Calculation**:
+- Original: €10,000
+- Discount 10%: -€1,000
+- Base after discount: €9,000
+- VAT 21%: +€1,890
+- **Total**: €10,890
+- **Per installment** (3): €3,630
+</Tip>
+
+## Public Administration Split Payments
+
+Combine split payments with DIR3 codes:
+
+```php
+Invoice::create('FAC-FACE-SPLIT-001')
+    ->series('F')
+    ->date('2024-12-01')
+    ->seller(
+        Party::company('A11223344', 'IT Solutions S.L.')
+            ->address('C/ Alcala, 100', '28009', 'Madrid', 'Madrid')
+    )
+    ->buyer(
+        Party::company('S2800001A', 'Ministerio de Educacion')
+            ->address('C/ Alcala, 36', '28014', 'Madrid', 'Madrid')
+            ->centre('01', 'EA0001234')
+            ->centre('02', 'EA0001234')
+            ->centre('03', 'EA0001234')
+    )
+    ->line('Implementacion plataforma educativa', price: 50000.00, vat: 21)
+    ->splitPayments(
+        method: PaymentMethod::Transfer,
+        installments: 4,
+        firstDueDate: '2025-03-01',  // 90 days first payment
+        intervalDays: 90,  // Quarterly
+        iban: 'ES91 2100 0418 4502 0005 1332'
+    )
+    ->legalLiteral(
+        'Contrato NUM-2024-XXX con Administracion Publica. '
+        . 'Pagos trimestrales. Factura FACe Ley 25/2013.'
+    )
+    ->export('factura-face-fraccionada.xsig');
+```
+
+## Validation
+
+<Warning>
+**Minimum installments**: At least 2 installments required.
+
+```php
+// ❌ WRONG - Use single payment method instead
+->splitPayments(
+    method: PaymentMethod::Transfer,
+    installments: 1,  // Only 1 installment
+    firstDueDate: '2024-12-01',
+    intervalDays: 30,
+    iban: 'ES91 2100 0418 4502 0005 1332'
+)
+
+// ✅ CORRECT - Use transferPayment() for single payment
+->transferPayment(
+    iban: 'ES91 2100 0418 4502 0005 1332',
+    dueDate: '2024-12-01'
+)
+```
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Payment Methods" icon="credit-card" href="/core/payments">
+    Explore all 19 available payment methods
+  </Card>
+  
+  <Card title="Basic Invoice" icon="file-invoice" href="/examples/basic-invoice">
+    Learn the fundamentals of invoice creation
+  </Card>
+  
+  <Card title="Public Administration" icon="landmark" href="/examples/public-administration">
+    Combine split payments with FACe
+  </Card>
+  
+  <Card title="Payment Entity" icon="code" href="/api/entities/payment">
+    Payment class API reference
+  </Card>
+</CardGroup>

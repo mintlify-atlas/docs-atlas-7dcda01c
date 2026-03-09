@@ -1,0 +1,264 @@
+---
+title: Installation
+description: Install PHP FacturaE via Composer and configure your environment
+---
+
+# Installation
+
+Get started with PHP FacturaE in your project by following these simple steps.
+
+## Requirements
+
+<Warning>
+PHP FacturaE requires **PHP 8.2 or higher**. Make sure your environment meets this requirement before installing.
+</Warning>
+
+### PHP Version
+
+```json
+"php": "^8.2"
+```
+
+### Required PHP Extensions
+
+The following extensions must be enabled in your PHP installation:
+
+<CardGroup cols={2}>
+  <Card title="ext-openssl" icon="lock">
+    Required for XAdES-EPES digital signatures and certificate handling
+  </Card>
+  
+  <Card title="ext-dom" icon="file-code">
+    Required for XML generation and manipulation
+  </Card>
+</CardGroup>
+
+<Info>
+These are standard PHP extensions and are typically enabled by default in most PHP installations.
+</Info>
+
+## Installing via Composer
+
+<Steps>
+  <Step title="Install the package">
+    Run the Composer command to add PHP FacturaE to your project:
+    
+    ```bash
+    composer require php-facturae/php-facturae
+    ```
+    
+    <Tip>
+    If you're starting a new project, you can combine this with `composer init` to create a new `composer.json` file.
+    </Tip>
+  </Step>
+  
+  <Step title="Verify installation">
+    After installation completes, verify the package is in your `composer.json`:
+    
+    ```json composer.json
+    {
+        "require": {
+            "php-facturae/php-facturae": "^1.0"
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Check PHP extensions">
+    Verify the required extensions are enabled:
+    
+    ```bash
+    php -m | grep -E "openssl|dom"
+    ```
+    
+    You should see both `openssl` and `dom` in the output.
+  </Step>
+</Steps>
+
+## Verifying Your Setup
+
+Create a test script to ensure everything is installed correctly:
+
+```php verify.php
+<?php
+
+require_once 'vendor/autoload.php';
+
+use PhpFacturae\Invoice;
+use PhpFacturae\Party;
+
+// Create a simple test invoice
+$invoice = Invoice::create('TEST-001')
+    ->seller(Party::company('B12345678', 'Test Company'))
+    ->buyer(Party::company('B87654321', 'Client Company'))
+    ->line('Test Product', price: 100.00, vat: 21);
+
+echo "✓ PHP FacturaE is correctly installed!\n";
+echo "Invoice number: " . $invoice->getNumber() . "\n";
+```
+
+Run the script:
+
+```bash
+php verify.php
+```
+
+You should see:
+
+```
+✓ PHP FacturaE is correctly installed!
+Invoice number: TEST-001
+```
+
+## Autoloading
+
+PHP FacturaE uses **PSR-4 autoloading**. The namespace mapping is:
+
+```json composer.json
+{
+    "autoload": {
+        "psr-4": {
+            "PhpFacturae\\": "src/"
+        }
+    }
+}
+```
+
+This means:
+- `PhpFacturae\Invoice` maps to `src/Invoice.php`
+- `PhpFacturae\Party` maps to `src/Party.php`
+- `PhpFacturae\Entities\Line` maps to `src/Entities/Line.php`
+- And so on...
+
+<Note>
+After requiring the Composer autoloader (`vendor/autoload.php`), all classes are automatically available — no manual imports needed.
+</Note>
+
+## Development Dependencies
+
+If you plan to contribute or run tests, install dev dependencies:
+
+```bash
+composer install --dev
+```
+
+This includes:
+
+- **PHPUnit 11.0+** — For running the test suite
+- **PHPStan 2.0+** — For static analysis at level 8
+
+### Running Tests
+
+```bash
+vendor/bin/phpunit
+```
+
+### Running Static Analysis
+
+```bash
+vendor/bin/phpstan analyse src --level=8
+```
+
+## Troubleshooting
+
+### "ext-openssl is missing"
+
+<Warning>
+The `openssl` extension is required for digital signatures.
+</Warning>
+
+**On Ubuntu/Debian:**
+```bash
+sudo apt-get install php8.2-openssl
+sudo systemctl restart php8.2-fpm
+```
+
+**On macOS (Homebrew):**
+```bash
+brew install [email protected]
+```
+
+**On Windows:**
+
+Edit `php.ini` and uncomment:
+```ini
+extension=openssl
+```
+
+### "ext-dom is missing"
+
+**On Ubuntu/Debian:**
+```bash
+sudo apt-get install php8.2-xml
+sudo systemctl restart php8.2-fpm
+```
+
+**On macOS (Homebrew):**
+```bash
+brew install [email protected]
+```
+
+**On Windows:**
+
+Edit `php.ini` and uncomment:
+```ini
+extension=dom
+```
+
+### "Class 'PhpFacturae\Invoice' not found"
+
+<Tip>
+Make sure you're requiring the Composer autoloader:
+
+```php
+require_once __DIR__ . '/vendor/autoload.php';
+```
+</Tip>
+
+If the error persists, regenerate the autoloader:
+
+```bash
+composer dump-autoload
+```
+
+## Optional: TSA Timestamping
+
+For timestamp authority (TSA) support when signing invoices, you may need `ext-curl`:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install php8.2-curl
+
+# macOS
+brew install [email protected]
+```
+
+<Info>
+TSA timestamping is **optional** but recommended for long-term signature validity. See the Signing documentation for details.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first complete invoice in under 5 minutes
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/invoice">
+    Explore the full API documentation
+  </Card>
+</CardGroup>
+
+<Steps>
+  <Step title="Installation complete">
+    You've successfully installed PHP FacturaE!
+  </Step>
+  
+  <Step title="Create your first invoice">
+    Head to the [Quickstart guide](/quickstart) to generate a complete working invoice
+  </Step>
+  
+  <Step title="Learn advanced features">
+    Explore corrective invoices, digital signatures, split payments, and more
+  </Step>
+</Steps>

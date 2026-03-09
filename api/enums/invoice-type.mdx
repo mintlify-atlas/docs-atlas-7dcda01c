@@ -1,0 +1,251 @@
+---
+title: InvoiceType
+description: Invoice type codes (Full, Simplified, etc.)
+---
+
+The `InvoiceType` enum represents the different types of invoices supported by the FacturaE format. Each type has specific requirements and use cases.
+
+## Enum Cases
+
+| Case | Code | Spanish Name | Description |
+|------|------|--------------|-------------|
+| `Full` | `FC` | Factura completa | Full invoice with complete details |
+| `Simplified` | `FA` | Factura simplificada | Simplified invoice (ticket) |
+| `SimplifiedRectified` | `AF` | Factura simplificada rectificada | Rectified simplified invoice |
+
+## Invoice Type Details
+
+### Full Invoice (FC)
+
+**Full invoices** are the standard invoice type with complete party identification and all required fields.
+
+**Characteristics:**
+- Complete issuer and recipient information
+- Full tax identification (NIF/CIF)
+- Detailed address information
+- All line items with full descriptions
+- Complete tax breakdowns
+- Digital signature capable
+
+**When to use:**
+- B2B transactions
+- Government invoicing
+- Amounts over €3,000
+- When full details are required
+- Export/import operations
+
+### Simplified Invoice (FA)
+
+**Simplified invoices** are streamlined invoices with reduced information requirements, commonly used for retail and B2C transactions.
+
+**Characteristics:**
+- Minimal recipient information
+- Can omit recipient tax ID if under €3,000
+- Simplified address requirements
+- Commonly called "tickets" or "receipts"
+- Faster processing
+
+**When to use:**
+- B2C transactions
+- Retail sales
+- Amounts under €3,000
+- When recipient doesn't need full details
+- Point of sale systems
+
+### Simplified Rectified Invoice (AF)
+
+**Simplified rectified invoices** are corrections or credits for simplified invoices.
+
+**Characteristics:**
+- Corrects a previous simplified invoice
+- Similar requirements to simplified invoices
+- References original simplified invoice
+- Can be used for refunds and returns
+
+**When to use:**
+- Correcting simplified invoices
+- Retail refunds
+- Ticket exchanges
+- Simplified invoice credits
+
+## Usage Examples
+
+### Creating a Full Invoice
+
+```php
+use PhpFacturae\{Invoice, Enums\InvoiceType};
+
+$invoice = new Invoice();
+$invoice->setType(InvoiceType::Full);
+
+// Full invoices require complete party information
+$invoice->setIssuer(
+    taxId: 'B12345678',
+    name: 'ACME Corporation SL',
+    address: 'Calle Mayor 123',
+    postCode: '28001',
+    town: 'Madrid',
+    province: 'Madrid',
+    countryCode: 'ESP'
+);
+
+$invoice->setRecipient(
+    taxId: 'B87654321',
+    name: 'Cliente SA',
+    address: 'Calle Menor 456',
+    postCode: '08001',
+    town: 'Barcelona',
+    province: 'Barcelona',
+    countryCode: 'ESP'
+);
+```
+
+### Creating a Simplified Invoice
+
+```php
+use PhpFacturae\{Invoice, Enums\InvoiceType};
+
+$invoice = new Invoice();
+$invoice->setType(InvoiceType::Simplified);
+
+// Simplified invoices need minimal recipient info
+$invoice->setIssuer(
+    taxId: 'B12345678',
+    name: 'Retail Store SL',
+    address: 'Plaza Central 1',
+    postCode: '28001',
+    town: 'Madrid',
+    province: 'Madrid',
+    countryCode: 'ESP'
+);
+
+// Recipient info can be minimal for amounts under €3,000
+$invoice->setRecipient(
+    name: 'General Public',
+    countryCode: 'ESP'
+);
+```
+
+### Creating a Simplified Rectified Invoice
+
+```php
+use PhpFacturae\{Invoice, Enums\InvoiceType, Enums\CorrectionReason, Enums\CorrectionMethod};
+
+$creditNote = new Invoice();
+$creditNote->setType(InvoiceType::SimplifiedRectified);
+$creditNote->setIsCorrective(true);
+$creditNote->setCorrectionReason(CorrectionReason::BaseModifiedReturns);
+$creditNote->setCorrectionMethod(CorrectionMethod::Differences);
+
+// Reference the original simplified invoice
+$creditNote->addCorrectedInvoice(
+    series: 'T',
+    number: '12345',
+    issueDate: new DateTime('2024-01-15')
+);
+```
+
+### Checking Invoice Type
+
+```php
+use PhpFacturae\{Invoice, Enums\InvoiceType};
+
+$invoice = new Invoice();
+
+if ($invoice->getType() === InvoiceType::Full) {
+    echo 'Full invoice - requires complete information';
+}
+
+if ($invoice->getType() === InvoiceType::Simplified) {
+    echo 'Simplified invoice - minimal information required';
+}
+```
+
+## Legal Requirements
+
+### Full Invoice Requirements (FC)
+
+**Must include:**
+- Complete issuer identification (NIF/CIF, name, address)
+- Complete recipient identification (NIF/CIF, name, address)
+- Sequential invoice number
+- Issue date
+- Detailed line items
+- Tax breakdown by rate
+- Total amounts
+
+**Optional:**
+- Payment terms
+- Delivery information
+- Additional legal text
+
+### Simplified Invoice Requirements (FA)
+
+**Must include:**
+- Issuer identification (NIF/CIF, name)
+- Sequential invoice number
+- Issue date
+- Line items description
+- Tax breakdown
+- Total amounts
+
+**Can omit (if under €3,000):**
+- Recipient tax ID
+- Recipient full address
+- Detailed recipient information
+
+**Restrictions:**
+- Cannot be used for amounts over €3,000
+- Not valid for B2B intra-EU transactions
+- Limited use for exports
+
+## Amount Thresholds
+
+| Amount | Full Invoice | Simplified Invoice |
+|--------|--------------|-------------------|
+| Up to €3,000 | Optional | ✓ Allowed |
+| Over €3,000 | Required | Not allowed |
+| B2B transactions | Recommended | Not recommended |
+| Government invoicing | Required | Not allowed |
+
+## Use Case Guide
+
+### Use Full Invoice (FC) For:
+
+- B2B sales
+- Amounts over €3,000
+- Government contracts
+- Export invoices
+- When client needs full details for accounting
+- Professional services
+
+### Use Simplified Invoice (FA) For:
+
+- Retail sales
+- B2C transactions
+- Amounts under €3,000
+- Walk-in customers
+- Point of sale receipts
+- Quick service transactions
+
+### Use Simplified Rectified (AF) For:
+
+- Correcting simplified invoices
+- Retail refunds
+- Product returns at retail
+- Simplified invoice adjustments
+
+## Notes
+
+- Full invoices are the safest choice when in doubt
+- Simplified invoices speed up retail operations
+- Tax authorities prefer full invoices for amounts over €3,000
+- Invoice type affects required fields validation
+- Type cannot be changed after invoice is signed
+- Different types may have different digital signature requirements
+
+## See Also
+
+- [Invoice::setType()](/api/classes/invoice#settype) - Set invoice type
+- [Invoice::getType()](/api/classes/invoice#gettype) - Get current type
+- [Invoice::setIsCorrective()](/api/classes/invoice#setiscorrective) - Mark as corrective

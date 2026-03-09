@@ -1,0 +1,194 @@
+---
+title: Payment
+description: Represents payment information including method, due date, and installment details
+---
+
+The `Payment` entity represents payment information for an invoice. It includes the payment method, optional due date, amount, bank details, and support for installment payments.
+
+## Constructor
+
+```php
+new Payment(
+    PaymentMethod $method,
+    ?DateTimeImmutable $dueDate = null,
+    ?float $amount = null,
+    ?string $iban = null,
+    ?string $bic = null,
+    ?int $installmentIndex = null,
+    ?int $totalInstallments = null
+)
+```
+
+### Parameters
+
+<ParamField path="method" type="PaymentMethod" required>
+  Payment method. See [PaymentMethod](/api/enums/payment-method) for available options
+</ParamField>
+
+<ParamField path="dueDate" type="DateTimeImmutable|null" default="null">
+  Payment due date. Required for some payment methods
+</ParamField>
+
+<ParamField path="amount" type="float|null" default="null">
+  Payment amount. For split payments, this is the amount of this specific installment
+</ParamField>
+
+<ParamField path="iban" type="string|null" default="null">
+  International Bank Account Number for bank transfers or direct debits
+</ParamField>
+
+<ParamField path="bic" type="string|null" default="null">
+  Bank Identifier Code (SWIFT code) for international transfers
+</ParamField>
+
+<ParamField path="installmentIndex" type="int|null" default="null">
+  Index of this installment (1-based) when using split payments
+</ParamField>
+
+<ParamField path="totalInstallments" type="int|null" default="null">
+  Total number of installments for split payments. When > 1, this indicates a split payment plan
+</ParamField>
+
+## Properties
+
+All constructor parameters are exposed as public readonly properties:
+
+<ResponseField name="method" type="PaymentMethod">
+  Payment method
+</ResponseField>
+
+<ResponseField name="dueDate" type="DateTimeImmutable|null">
+  Payment due date
+</ResponseField>
+
+<ResponseField name="amount" type="float|null">
+  Payment amount
+</ResponseField>
+
+<ResponseField name="iban" type="string|null">
+  International Bank Account Number
+</ResponseField>
+
+<ResponseField name="bic" type="string|null">
+  Bank Identifier Code
+</ResponseField>
+
+<ResponseField name="installmentIndex" type="int|null">
+  Installment index (1-based)
+</ResponseField>
+
+<ResponseField name="totalInstallments" type="int|null">
+  Total number of installments
+</ResponseField>
+
+## Methods
+
+### isSplitPayment()
+
+Determines if this payment is part of a split payment plan.
+
+```php
+public function isSplitPayment(): bool
+```
+
+**Returns:** `true` if `totalInstallments` is greater than 1, `false` otherwise
+
+## PaymentMethod Enum
+
+The `PaymentMethod` enum defines standard payment methods from the FacturaE specification:
+
+- `Cash` - Cash payment (01)
+- `DirectDebit` - Direct debit (02)
+- `Transfer` - Bank transfer (04)
+- `Card` - Card payment (19)
+- And [many more](/api/enums/payment-method)
+
+## Example Usage
+
+### Simple Transfer Payment
+
+```php
+use PhpFacturae\Entities\Payment;
+use PhpFacturae\Enums\PaymentMethod;
+
+$payment = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new \DateTimeImmutable('+30 days'),
+    iban: 'ES9121000418450200051332'
+);
+```
+
+### Direct Debit with BIC
+
+```php
+$payment = new Payment(
+    method: PaymentMethod::DirectDebit,
+    dueDate: new \DateTimeImmutable('2024-12-31'),
+    amount: 1500.00,
+    iban: 'ES9121000418450200051332',
+    bic: 'CAIXESBBXXX'
+);
+```
+
+### Cash Payment
+
+```php
+$payment = new Payment(
+    method: PaymentMethod::Cash
+);
+```
+
+### Split Payment (Installments)
+
+```php
+// First installment
+$payment1 = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new \DateTimeImmutable('+30 days'),
+    amount: 500.00,
+    iban: 'ES9121000418450200051332',
+    installmentIndex: 1,
+    totalInstallments: 3
+);
+
+// Second installment
+$payment2 = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new \DateTimeImmutable('+60 days'),
+    amount: 500.00,
+    iban: 'ES9121000418450200051332',
+    installmentIndex: 2,
+    totalInstallments: 3
+);
+
+// Third installment
+$payment3 = new Payment(
+    method: PaymentMethod::Transfer,
+    dueDate: new \DateTimeImmutable('+90 days'),
+    amount: 500.00,
+    iban: 'ES9121000418450200051332',
+    installmentIndex: 3,
+    totalInstallments: 3
+);
+
+// Check if it's a split payment
+var_dump($payment1->isSplitPayment()); // true
+```
+
+### Adding Payments to Invoice
+
+```php
+use PhpFacturae\Invoice;
+
+$invoice = new Invoice(
+    // ... invoice parameters
+);
+
+$invoice->addPayment(
+    new Payment(
+        method: PaymentMethod::Card,
+        dueDate: new \DateTimeImmutable('+15 days'),
+        amount: 1210.00
+    )
+);
+```
